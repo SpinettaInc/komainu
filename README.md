@@ -11,7 +11,7 @@
 [![JavaScript](https://img.shields.io/badge/JavaScript-no%20framework-F7DF1E?logo=javascript&logoColor=black)](src)
 [![Dependencies: none](https://img.shields.io/badge/runtime%20dependencies-none-brightgreen)](package.json)
 [![Node.js 18+](https://img.shields.io/badge/node-18%2B-5FA04E?logo=nodedotjs&logoColor=white)](package.json)
-[![Static site](https://img.shields.io/badge/site-static%2C%20no%20server-informational)](site)
+[![Static site](https://img.shields.io/badge/site-static%2C%20no%20server-informational)](public)
 [![MCP 2026-07-28](https://img.shields.io/badge/MCP-2026--07--28-6E56CF)](src/cli/mcp.js)
 [![Agent Skills](https://img.shields.io/badge/skill-Agent%20Skills-D97757)](src/skill/SKILL.md)
 [![AGENTS.md](https://img.shields.io/badge/writes-AGENTS.md-000000)](src/core/generate.js)
@@ -38,16 +38,16 @@ Komainu is a static website and one JavaScript file. It has no server, no databa
 
 | Piece | What it is | Where |
 |---|---|---|
-| Landing page | What Komainu is, and the commands for the CLI, the MCP server and the skill | `site/index.html` |
-| Quiz page | Opens a quiz from a link, with nothing to download | `site/quiz.html` |
-| Templates | Browse the policy templates by role and by area, read every rule and download each as CSV | `site/templates.html` |
-| Builder | A full-width editor. Areas on the left, the rules being edited in the middle, the command and the generated files on the right | `site/builder.html` |
-| Offline builder | The builder as one HTML file that opens from disk | `site/komainu-standalone.html`, `site/komainu-standalone-ja.html` |
+| Landing page | What Komainu is, and the commands for the CLI, the MCP server and the skill | `public/index.html` |
+| Quiz page | Opens a quiz from a link, with nothing to download | `public/quiz.html` |
+| Templates | Browse the policy templates by role and by area, read every rule and download each as CSV | `public/templates.html` |
+| Builder | A full-width editor. Areas on the left, the rules being edited in the middle, the command and the generated files on the right | `public/builder.html` |
+| Offline builder | The builder as one HTML file that opens from disk | `public/komainu-standalone.html`, `public/komainu-standalone-ja.html` |
 | Download all | On the builder's Files tab, one zip with every generated file in its folder | `src/core/zip.js` |
 | Training quiz | A quiz on the selected rules as one HTML file, or as Markdown or CSV | builder "quiz" tab, templates page, `komainu quiz` |
-| CLI | `init`, `apply`, `template`, `quiz`, `import`, `status`, `check`, `redact`, `export`, `catalog` | `site/komainu.mjs` |
+| CLI | `init`, `apply`, `template`, `quiz`, `import`, `status`, `check`, `redact`, `export`, `catalog` | `public/komainu.mjs` |
 | MCP server | `komainu mcp`: six read-only tools, two prompts and two resources over stdio | the same file |
-| Agent skill | `komainu-guardrails` reads internal policy locally, maps clauses to rules and reports coverage | `site/skill/` |
+| Agent skill | `komainu-guardrails` reads internal policy locally, maps clauses to rules and reports coverage | `public/skill/` |
 
 The CLI, the MCP server and the skill installer are one file. It has no dependencies, makes no network requests and is not minified, so you can read it before you run it.
 
@@ -224,7 +224,7 @@ You need Node.js 18 or later.
 ```sh
 npm install
 npm run check        # lint, build, tests
-npm test             # build site/ and run the tests
+npm test             # build public/ and run the tests
 npm run lint         # ESLint, Stylelint, markdownlint, html-validate, prose check
 npm run coverage     # tests with a coverage report for src/core
 npm run serve        # http://localhost:4173
@@ -236,15 +236,15 @@ npm run serve        # http://localhost:4173
 | `src/cli/` | CLI and MCP server |
 | `src/skill/` | The agent skill and its references |
 | `src/web/` | Landing page (`index.html`, `site.js`), templates page (`templates.html`, `templates.js`), both styled by `site.css`, and the builder (`builder.html`, `styles.css`, `builder.js`). `dom.js` is shared |
-| `scripts/` | `build.mjs` builds `site/`. `lint-prose.mjs` checks the writing |
+| `scripts/` | `build.mjs` builds `public/`. `lint-prose.mjs` checks the writing |
 | `test/` | `node:test` suites, more than 1,000 tests. The page tests drive the built pages in jsdom and run axe-core on them |
-| `site/` | The document root to deploy |
+| `public/` | The document root to deploy. It holds only the built static files |
 
 To add a rule, add one line to `RULES` in `src/core/catalog.js`. The builder, the CLI, the MCP server and the skill's catalog reference all pick it up.
 
 ## Publish
 
-Upload `site/` to any static host. `site/_headers` sets the security headers on hosts that read that file, such as Cloudflare Pages and Netlify. On other hosts the `<meta>` tag in each page applies the same policy. The commands shown on the pages use the address the page is served from.
+Point the web server at `public/` and at nothing above it, or upload `public/` to any static host. The folder holds only the built static files, so the source, the tests and `.git` are never served. `public/_headers` sets the security headers on hosts that read that file, such as Cloudflare Pages and Netlify. On other hosts the `<meta>` tag in each page applies the same policy. The commands shown on the pages use the address the page is served from.
 
 ## Limits
 

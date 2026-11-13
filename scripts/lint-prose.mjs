@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SELF = path.relative(root, fileURLToPath(import.meta.url));
-const SKIP_DIRS = new Set(['node_modules', 'site', 'coverage', '.git', 'fonts']);
+const SKIP_DIRS = new Set(['node_modules', 'public', 'coverage', '.git', 'fonts']);
 const EXTENSIONS = new Set(['.md', '.html', '.js', '.mjs', '.css', '.json', '.jsonc', '.yml']);
 const SKIP_FILES = new Set(['package-lock.json', SELF]);
 

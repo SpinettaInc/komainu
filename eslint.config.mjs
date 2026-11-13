@@ -31,7 +31,7 @@ const rules = {
 };
 
 export default [
-    { ignores: ['site/**', '**/node_modules/**', 'coverage/**'] },
+    { ignores: ['public/**', '**/node_modules/**', 'coverage/**'] },
     js.configs.recommended,
     { plugins: { '@stylistic': stylistic } },
     {

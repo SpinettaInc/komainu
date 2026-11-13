@@ -1,4 +1,4 @@
-// Builds the deployable static site into ./site. Dev-time only: the output is
+// Builds the deployable static site into ./public. Dev-time only: the output is
 // plain files that any static host can serve.
 
 import { build } from 'esbuild';
@@ -11,7 +11,7 @@ import { toJapanese } from './ja-pages.mjs';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const src = (...p) => path.join(root, 'src', ...p);
-const out = (...p) => path.join(root, 'site', ...p);
+const out = (...p) => path.join(root, 'public', ...p);
 const sha256 = (buf, enc = 'hex') => crypto.createHash('sha256').update(buf).digest(enc);
 const write = (file, content) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
 
@@ -99,4 +99,4 @@ const sums = ['komainu.mjs', 'komainu-standalone.html', 'komainu-standalone-ja.h
 write(out('SHA256SUMS'), sums);
 
 const kb = (f) => `${(fs.statSync(out(f)).size / 1024).toFixed(0)} KB`;
-console.log(`site/ built: komainu.mjs ${kb('komainu.mjs')}, builder.js ${kb('assets/builder.js')}, standalone ${kb('komainu-standalone.html')}`);
+console.log(`public/ built: komainu.mjs ${kb('komainu.mjs')}, builder.js ${kb('assets/builder.js')}, standalone ${kb('komainu-standalone.html')}`);

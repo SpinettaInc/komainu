@@ -8,5 +8,5 @@
         "MD060": false
     },
     "globs": ["**/*.md"],
-    "ignores": ["**/node_modules/**", "site/**", "LICENSE"]
+    "ignores": ["**/node_modules/**", "public/**", "LICENSE"]
 }

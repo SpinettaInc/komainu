@@ -499,7 +499,7 @@ test('builder: the standalone file behaves the same and hides what needs the sit
 
 /** The standalone file is the same builder with its script inlined, opened from disk. */
 function loadStandalone() {
-    const html = fs.readFileSync(new URL('../site/komainu-standalone.html', import.meta.url), 'utf8');
+    const html = fs.readFileSync(new URL('../public/komainu-standalone.html', import.meta.url), 'utf8');
     const script = html.match(/<script>([\s\S]*)<\/script>/)[1];
     const dom = new JSDOM(html.replace(/<script>[\s\S]*<\/script>/, ''), { url: 'file:///tmp/komainu-standalone.html', runScripts: 'outside-only', pretendToBeVisual: true });
     prepare(dom.window);

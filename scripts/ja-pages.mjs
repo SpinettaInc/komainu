@@ -1,6 +1,6 @@
 // Japanese wording for the static pages. The build reads each English page
 // from src/web, swaps every fragment listed here and writes the result under
-// site/ja/. The markup stays in one place, so the two languages cannot drift
+// public/ja/. The markup stays in one place, so the two languages cannot drift
 // apart in structure. A fragment that no longer matches the English page
 // stops the build, and a test looks for English sentences left behind.
 //

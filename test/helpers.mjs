@@ -10,7 +10,7 @@ import { JSDOM } from 'jsdom';
 import { DOMAINS, TARGETS, REDACT_CLASSES } from '../src/core/catalog.js';
 
 export const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-export const site = (...p) => path.join(root, 'site', ...p);
+export const site = (...p) => path.join(root, 'public', ...p);
 export const CLI = site('komainu.mjs');
 export const read = (...p) => fs.readFileSync(site(...p), 'utf8');
 
