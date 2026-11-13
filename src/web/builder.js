@@ -3,20 +3,24 @@
 // It makes no network requests and uses no browser storage. State lives in
 // memory and in what the visitor copies.
 
-import { DOMAINS, RULES, STRICTNESS, TARGETS, PRESETS, REDACT_CLASSES, COVERAGE } from '../core/catalog.js';
+import { DOMAINS, RULES, STRICTNESS, TARGETS, PRESETS, REDACT_CLASSES } from '../core/catalog.js';
 import { DEFAULT_CONFIG, normalize, decode, encode, compact, stats, isActive, isDefaultOn, renderText, coverageOf } from '../core/config.js';
 import { generate } from '../core/generate.js';
 import { cliCommand, bashScript, powershellScript, agentPrompt } from '../core/commands.js';
 import { parseRules, applyImport, TEMPLATE_CSV, TEMPLATE_JSON } from '../core/import.js';
 import { policyTemplates, templateCsv, templateFileName } from '../core/templates.js';
-import { zip } from '../core/zip.js';
 import { buildQuiz, quizLink, QUIZ_FORMATS, QUIZ_SIZES } from '../core/quiz.js';
-import { ONLINE, BASE, $, h, fill, toggle, toast, copy, download, codebox } from './dom.js';
+import { zip } from '../core/zip.js';
+import { LANGS, LANG_NAMES, domainIn, strictnessIn, targetIn, presetIn, redactIn, coverageIn, ruleIn } from '../core/i18n.js';
+import { ONLINE, BASE, PAGE_BASE, LANG, $, h, fill, toggle, toast, copy, download, codebox } from './dom.js';
+import { t, count } from './ui.js';
 
-let cfg = normalize({});
+// A new configuration writes its files in the language of the page.
+let cfg = normalize({ lang: LANG });
 const ui = { quizCount: 10, quizSeed: 0, view: 'template', tab: 'command', shell: /Win/i.test(navigator.platform || '') ? 'ps' : 'sh', file: 0, q: '', filter: 'all' };
-const domain = (id) => DOMAINS.find((d) => d.id === id);
-const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const JA = LANG === 'ja';
+const domain = (id) => domainIn(LANG, id);
+const cov = (id) => coverageIn(LANG, id);
 
 /** Apply a change. `main: false` keeps the middle pane untouched (and the caret where it is). */
 function update(patch, { main = true } = {}) {
@@ -37,10 +41,9 @@ function go(view) {
 }
 
 // ── left: navigation ────────────────────────────────────────────────────────
-const SETUP = [['template', 'Template'], ['org', 'Organization'], ['data', 'Data handling'], ['targets', 'Install targets']];
-
 function navItem(view, label, meta) {
-    return h('button', { type: 'button', class: 'nav-item', 'aria-current': ui.view === view ? 'page' : null, onclick: () => go(view) }, h('span', {}, label), meta !== null && meta !== undefined && h('small', {}, meta));
+    return h('button', { type: 'button', class: 'nav-item', 'data-view': view, 'aria-current': ui.view === view ? 'page' : null, onclick: () => go(view) },
+        h('span', {}, label), meta !== null && meta !== undefined && h('small', {}, meta));
 }
 
 function renderSide() {
@@ -50,14 +53,17 @@ function renderSide() {
         return `${rules.filter((r) => isActive(r, cfg)).length + (cfg.domains.includes(d.id) ? mine : 0)}/${rules.length + mine}`;
     };
     fill($('side'),
-        h('p', { class: 'side-h' }, 'Setup'),
-        SETUP.map(([v, label]) => navItem(v, label, v === 'targets' ? cfg.targets.length : v === 'org' ? cfg.strictness : null)),
-        h('p', { class: 'side-h' }, 'Areas'),
+        h('p', { class: 'side-h' }, t('Setup')),
+        navItem('template', t('Template')),
+        navItem('org', t('Organization'), JA ? strictnessIn(LANG, cfg.strictness).name : cfg.strictness),
+        navItem('data', t('Data handling')),
+        navItem('targets', t('Install targets'), cfg.targets.length),
+        h('p', { class: 'side-h' }, t('Areas')),
         DOMAINS.map((d) => h('div', { class: 'area-row' + (cfg.domains.includes(d.id) ? '' : ' off') },
-            h('input', { type: 'checkbox', checked: cfg.domains.includes(d.id), disabled: !!d.locked, 'aria-label': `Include ${d.name}`, title: d.locked ? 'Always included' : `Include ${d.name}`, onchange: (e) => update({ domains: toggle(cfg.domains, d.id, e.target.checked) }) }),
-            navItem('area:' + d.id, d.name, cfg.domains.includes(d.id) ? counts(d) : 'off'))),
-        h('p', { class: 'side-h' }, 'Your rules'),
-        navItem('import', 'Templates and import', cfg.custom.length || null));
+            h('input', { type: 'checkbox', checked: cfg.domains.includes(d.id), disabled: !!d.locked, 'aria-label': t('Include {name}', { name: domain(d.id).name }), title: d.locked ? t('Always included') : t('Include {name}', { name: domain(d.id).name }), onchange: (e) => update({ domains: toggle(cfg.domains, d.id, e.target.checked) }) }),
+            navItem('area:' + d.id, domain(d.id).name, cfg.domains.includes(d.id) ? counts(d) : t('off')))),
+        h('p', { class: 'side-h' }, t('Your rules')),
+        navItem('import', t('Templates and import'), cfg.custom.length || null));
 }
 
 // ── middle: views ───────────────────────────────────────────────────────────
@@ -66,82 +72,108 @@ const head = (kicker, title, sub) => h('header', { class: 'view-head' }, h('p', 
 function textField(label, key, placeholder, { optional, max = 300 } = {}) {
     const id = 'f-' + key;
     return h('div', { class: 'field' },
-        h('label', { for: id }, label, optional && h('span', { class: 'opt' }, 'optional')),
+        h('label', { for: id }, label, optional && h('span', { class: 'opt' }, t('optional'))),
         h('input', { id, type: 'text', autocomplete: 'off', maxLength: max, placeholder, value: cfg[key], oninput: (e) => update({ [key]: e.target.value }, { main: false }) }));
 }
 
+const stop = (s) => (/[.。]$/.test(s) ? s : s + (JA ? '。' : '.'));
 const checks = (items, selected, onchange, cls = '') => h('div', { class: 'checks ' + cls }, items.map((it) => h('label', { class: 'check' },
     h('input', { type: 'checkbox', checked: selected.includes(it.id), onchange: (e) => onchange(it.id, e.target.checked) }),
-    h('span', {}, it.name), h('small', {}, it.hint + (it.hint.endsWith('.') ? '' : '.')))));
+    h('span', {}, it.name), h('small', {}, stop(it.hint)))));
 
-function loadConfig(text, okMsg) {
-    cfg = normalize(decode(text));
-    renderSide(); renderMain(); renderOutput();
+function loadConfig(source, okMsg) {
+    cfg = normalize(decode(source));
+    renderSide();
+    renderMain();
+    renderOutput();
     if (okMsg) toast(okMsg);
+}
+
+const level = (l) => (l === 'must' ? t('must') : t('should'));
+
+function ruleTable(rules, onRemove) {
+    const heads = [t('Area'), t('Level'), t('Rule'), t('Source')];
+    return h('div', { class: 'mini' }, h('table', {},
+        h('thead', {}, h('tr', {}, heads.map((c) => h('th', { scope: 'col' }, c)), onRemove && h('th', { scope: 'col' }, ''))),
+        h('tbody', {}, rules.map((r, i) => h('tr', {}, h('td', {}, domain(r.d).name), h('td', {}, level(r.l)), h('td', {}, r.x), h('td', {}, r.src || ''),
+            onRemove && h('td', {}, h('button', { type: 'button', class: 'x-btn', onclick: () => onRemove(i) }, t('Remove'))))))));
 }
 
 const views = {
     template() {
-        const text = h('textarea', { id: 'import-text', rows: 4, spellcheck: false, placeholder: 'Paste a komainu.json, a share link or a command' });
+        const box = h('textarea', { id: 'import-text', rows: 4, spellcheck: false, placeholder: t('Paste a komainu.json, a share link or a command') });
         const msg = h('span', { id: 'import-msg', role: 'status' });
         return [
-            head('Setup', 'Start from a template', 'A template sets the areas, the strictness and where the guardrails are installed. Everything stays editable afterwards.'),
+            head(t('Setup'), t('Start from a template'), t('A template sets the areas, the strictness and where the guardrails are installed. Everything stays editable afterwards.')),
             h('div', { class: 'cards wide', id: 'presets' }, PRESETS.map((p) => h('button', { type: 'button', class: 'card', onclick: () => {
                 // A template replaces every structural choice; what was typed about the organization stays.
                 const { strictness, domains, targets, redact, levels, hostedMax } = DEFAULT_CONFIG;
                 update({ strictness, domains, targets, redact, levels, hostedMax, ...p.cfg, on: [], off: [] });
-                toast(`Loaded "${p.name}"`);
-            } }, h('strong', {}, p.name), h('small', {}, p.blurb), h('small', { class: 'meta' }, `${p.cfg.domains.length} areas · ${p.cfg.strictness}`)))),
+                toast(t('Loaded "{name}"', { name: presetIn(LANG, p.id).name }));
+            } }, h('strong', {}, presetIn(LANG, p.id).name), h('small', {}, presetIn(LANG, p.id).blurb),
+            h('small', { class: 'meta' }, t('{n} areas · {level}', { n: p.cfg.domains.length, level: strictnessIn(LANG, p.cfg.strictness).name }))))),
             h('section', { class: 'block' },
-                h('h2', {}, 'Open an existing configuration'),
-                h('label', { for: 'import-text', class: 'hint' }, 'Paste a komainu.json, a share link or a command you were sent.'),
-                text,
+                h('h2', {}, t('Open an existing configuration')),
+                h('label', { for: 'import-text', class: 'hint' }, t('Paste a komainu.json, a share link or a command you were sent.')),
+                box,
                 h('div', { class: 'row' }, h('button', { type: 'button', class: 'btn small go', id: 'import-btn', onclick: () => {
-                    try { loadConfig(text.value, 'Configuration loaded'); } catch (e) { msg.textContent = e.message; }
-                } }, 'Open it'), msg))
+                    try {
+                        loadConfig(box.value, t('Configuration loaded'));
+                    } catch (e) {
+                        msg.textContent = e.message;
+                    }
+                } }, t('Open it')), msg))
         ];
     },
 
     org() {
         return [
-            head('Setup', 'Your organization', 'These details are written into the generated files. Use roles and channels. Leave out personal contact details.'),
+            head(t('Setup'), t('Your organization'), t('These details are written into the generated files. Use roles and channels. Leave out personal contact details.')),
             h('div', { class: 'grid2' },
-                textField('Name', 'org', 'Shown in the generated files', { optional: true, max: 80 }),
-                textField('Owner of AI questions and incidents', 'contact', 'A role or channel', { max: 120 })),
-            textField('Approved AI tools', 'tools', 'e.g. Claude Enterprise, GitHub Copilot Business'),
-            h('fieldset', { class: 'field' }, h('legend', {}, 'Strictness'),
+                textField(t('Name'), 'org', t('Shown in the generated files'), { optional: true, max: 80 }),
+                textField(t('Owner of AI questions and incidents'), 'contact', t('A role or channel'), { max: 120 })),
+            textField(t('Approved AI tools'), 'tools', t('e.g. Claude Enterprise, GitHub Copilot Business')),
+            h('fieldset', { class: 'field' }, h('legend', {}, t('Strictness')),
                 h('div', { class: 'seg', id: 'strictness' }, STRICTNESS.map((s) => h('label', { class: 'card' },
                     h('input', { type: 'radio', name: 'strictness', value: s.id, checked: cfg.strictness === s.id, onchange: () => update({ strictness: s.id }) }),
-                    h('strong', {}, s.name), h('small', {}, s.blurb)))))
+                    h('strong', {}, strictnessIn(LANG, s.id).name), h('small', {}, strictnessIn(LANG, s.id).blurb))))),
+            h('div', { class: 'field' },
+                h('label', { for: 'f-lang' }, t('Language of the generated files')),
+                h('select', { id: 'f-lang', onchange: (e) => update({ lang: e.target.value }) }, LANGS.map((l) => h('option', { value: l, selected: l === cfg.lang }, LANG_NAMES[l]))),
+                h('p', { class: 'hint' }, t('The rules files, the policy and the quiz are written in this language.')))
         ];
     },
 
     data() {
         const levels = h('input', { id: 'f-levels', type: 'text', autocomplete: 'off', spellcheck: false, value: cfg.levels.join(', '), onchange: (e) => {
-            const list = e.target.value.split(',').map((l) => l.trim()).filter(Boolean);
-            if (list.length >= 2) update({ levels: list });
-            else { toast('Enter at least two levels'); e.target.value = cfg.levels.join(', '); }
+            const list = e.target.value.split(/[,、]/).map((l) => l.trim()).filter(Boolean);
+            if (list.length >= 2) {
+                update({ levels: list });
+            } else {
+                toast(t('Enter at least two levels'));
+                e.target.value = cfg.levels.join(', ');
+            }
         } });
         return [
-            head('Setup', 'Data handling', 'What may go to a hosted AI service, and what is blocked or redacted on the machine before it leaves.'),
+            head(t('Setup'), t('Data handling'), t('What may go to a hosted AI service, and what is blocked or redacted on the machine before it leaves.')),
             h('div', { class: 'grid2' },
-                h('div', { class: 'field' }, h('label', { for: 'f-levels' }, 'Classification levels, lowest first'), levels),
-                h('div', { class: 'field' }, h('label', { for: 'f-hosted' }, 'Highest level for hosted AI'),
+                h('div', { class: 'field' }, h('label', { for: 'f-levels' }, t('Classification levels, lowest first')), levels),
+                h('div', { class: 'field' }, h('label', { for: 'f-hosted' }, t('Highest level for hosted AI')),
                     h('select', { id: 'f-hosted', onchange: (e) => update({ hostedMax: e.target.value }) }, cfg.levels.map((l) => h('option', { value: l, selected: l === cfg.hostedMax }, l))))),
-            textField('Route for anything higher', 'local', 'e.g. the on-premises model endpoint', { optional: true, max: 160 }),
-            h('fieldset', { class: 'field' }, h('legend', {}, 'Block and redact locally'),
-                h('div', { id: 'redact' }, checks(REDACT_CLASSES, cfg.redact, (id, on) => update({ redact: toggle(cfg.redact, id, on) })))),
+            textField(t('Route for anything higher'), 'local', t('e.g. the on-premises model endpoint'), { optional: true, max: 160 }),
+            h('fieldset', { class: 'field' }, h('legend', {}, t('Block and redact locally')),
+                h('div', { id: 'redact' }, checks(REDACT_CLASSES.map((c) => redactIn(LANG, c.id)), cfg.redact, (id, on) => update({ redact: toggle(cfg.redact, id, on) })))),
             h('div', { class: 'field' },
-                h('label', { for: 'f-terms' }, 'Sensitive names to block', h('span', { class: 'opt' }, 'optional')),
-                h('textarea', { id: 'f-terms', rows: 4, spellcheck: false, placeholder: 'Client names, project codenames. One per line or comma-separated.', value: cfg.terms.join('\n'), oninput: (e) => update({ terms: e.target.value.split(/[\n,]+/) }, { main: false }) }),
-                h('p', { class: 'hint' }, 'The local hook enforces these. They are never written into instruction files, so they are not sent to a model.'))
+                h('label', { for: 'f-terms' }, t('Sensitive names to block'), h('span', { class: 'opt' }, t('optional'))),
+                h('textarea', { id: 'f-terms', rows: 4, spellcheck: false, placeholder: t('Client names, project codenames. One per line or comma-separated.'), value: cfg.terms.join('\n'), oninput: (e) => update({ terms: e.target.value.split(/[\n,、]+/) }, { main: false }) }),
+                h('p', { class: 'hint' }, t('The local hook enforces these. They are never written into instruction files, so they are not sent to a model.')))
         ];
     },
 
     targets() {
         return [
-            head('Setup', 'Where to install them', 'Pick every assistant your teams use. Each one gets the same rules in its own format.'),
-            h('div', { id: 'targets' }, checks(TARGETS, cfg.targets, (id, on) => update({ targets: toggle(cfg.targets, id, on) }), 'tall'))
+            head(t('Setup'), t('Where to install them'), t('Pick every assistant your teams use. Each one gets the same rules in its own format.')),
+            h('div', { id: 'targets' }, checks(TARGETS.map((x) => targetIn(LANG, x.id)), cfg.targets, (id, on) => update({ targets: toggle(cfg.targets, id, on) }), 'tall'))
         ];
     },
 
@@ -150,73 +182,85 @@ const views = {
         const on = cfg.domains.includes(id);
         const rules = RULES.filter((r) => r.d === id);
         const list = h('ul', { class: 'rule-list', id: 'rules' });
-        const count = h('span', { class: 'count' });
+        const shownCount = h('span', { class: 'count' });
+        // Rules are shown in the page's language, with this configuration's values filled in.
+        const shown = (rule) => {
+            const local = ruleIn(LANG, rule);
+            return { t: local.t, x: renderText(local.x, { ...cfg, lang: LANG }) };
+        };
 
         const setRule = (rule, value) => (isDefaultOn(rule, cfg) ? update({ off: toggle(cfg.off, rule.id, !value) }) : update({ on: toggle(cfg.on, rule.id, value) }));
         const row = (rule) => {
             const active = isActive(rule, cfg);
-            const cov = coverageOf(rule, cfg);
+            const kind = coverageOf(rule, cfg);
             const cid = 'r-' + rule.id.replace(/\W/g, '-');
+            const text = shown(rule);
             return h('li', { class: 'rule' + (active ? '' : ' off') },
                 h('input', { type: 'checkbox', id: cid, checked: active, disabled: !on, onchange: (e) => setRule(rule, e.target.checked) }),
-                h('label', { for: cid, class: 't' }, rule.t),
-                h('span', { class: 'tags' }, h('span', { class: 'lvl ' + rule.l }, rule.l), h('span', { class: 'cov ' + cov, title: COVERAGE[cov].blurb }, COVERAGE[cov].name)),
-                h('span', { class: 'x' }, renderText(rule.x, cfg)),
+                h('label', { for: cid, class: 't' }, text.t),
+                h('span', { class: 'tags' }, h('span', { class: 'lvl ' + rule.l }, level(rule.l)), h('span', { class: 'cov ' + kind, title: cov(kind).blurb }, cov(kind).name)),
+                h('span', { class: 'x' }, text.x),
                 h('code', { class: 'rid' }, rule.id));
         };
         const mineRow = ([c, i]) => h('li', { class: 'rule mine-rule' },
             h('span', { class: 'plus', 'aria-hidden': 'true' }, '+'),
-            h('span', { class: 't' }, 'Your rule'),
-            h('span', { class: 'tags' }, h('span', { class: 'lvl ' + c.l }, c.l), h('span', { class: 'cov instructed' }, 'Instructed')),
+            h('span', { class: 't' }, t('Your rule')),
+            h('span', { class: 'tags' }, h('span', { class: 'lvl ' + c.l }, level(c.l)), h('span', { class: 'cov instructed' }, cov('instructed').name)),
             h('span', { class: 'x' }, c.x),
-            h('span', { class: 'rid' }, c.src && h('code', {}, c.src), h('button', { type: 'button', class: 'x-btn', onclick: () => update({ custom: cfg.custom.filter((_, n) => n !== i) }) }, 'Remove')));
+            h('span', { class: 'rid' }, c.src && h('code', {}, c.src), h('button', { type: 'button', class: 'x-btn', onclick: () => update({ custom: cfg.custom.filter((_, n) => n !== i) }) }, t('Remove'))));
 
         const draw = () => {
             const q = ui.q.trim().toLowerCase();
             const pass = {
                 all: () => true, on: (r) => isActive(r, cfg), off: (r) => !isActive(r, cfg), must: (r) => r.l === 'must', should: (r) => r.l === 'should', enforced: (r) => coverageOf(r, cfg) === 'enforced'
             }[ui.filter];
-            const shown = rules.filter((r) => pass(r) && (!q || `${r.t} ${r.x} ${r.id}`.toLowerCase().includes(q)));
+            const hits = rules.filter((r) => pass(r) && (!q || `${shown(r).t} ${shown(r).x} ${r.t} ${r.x} ${r.id}`.toLowerCase().includes(q)));
             const mine = cfg.custom.map((c, i) => [c, i]).filter(([c]) => c.d === id && (!q || c.x.toLowerCase().includes(q)) && !['off', 'enforced'].includes(ui.filter) && (!['must', 'should'].includes(ui.filter) || c.l === ui.filter));
-            fill(list, shown.map(row), mine.map(mineRow), !shown.length && !mine.length && h('li', { class: 'empty' }, 'No rules match.'));
-            count.textContent = `${shown.length + mine.length} shown`;
+            fill(list, hits.map(row), mine.map(mineRow), !hits.length && !mine.length && h('li', { class: 'empty' }, t('No rules match.')));
+            shownCount.textContent = t('{n} shown', { n: hits.length + mine.length });
         };
 
-        const text = h('input', { type: 'text', placeholder: `Add your own ${d.name.toLowerCase()} rule`, 'aria-label': `New ${d.name} rule`, maxLength: 600 });
-        const lvl = h('select', { 'aria-label': 'Level' }, h('option', { value: 'must' }, 'MUST'), h('option', { value: 'should' }, 'SHOULD'));
-        const add = () => { if (text.value.trim()) update({ custom: [...cfg.custom, { d: id, l: lvl.value, x: text.value }] }); };
-        text.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } });
+        const input = h('input', { type: 'text', placeholder: t('Add your own {name} rule', { name: JA ? d.name : d.name.toLowerCase() }), 'aria-label': t('New {name} rule', { name: d.name }), maxLength: 600 });
+        const lvl = h('select', { 'aria-label': t('Level') }, h('option', { value: 'must' }, t('MUST')), h('option', { value: 'should' }, t('SHOULD')));
+        const add = () => { if (input.value.trim()) update({ custom: [...cfg.custom, { d: id, l: lvl.value, x: input.value }] }); };
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                add();
+            }
+        });
 
+        const filters = { all: t('all'), on: t('on'), off: t('off'), must: t('must'), should: t('should'), enforced: t('enforced') };
         const ids = rules.map((r) => r.id);
         const without = (arr) => arr.filter((x) => !ids.includes(x));
         draw();
         return [
-            head('Area', d.name, d.blurb),
-            !on && h('div', { class: 'banner' }, h('span', {}, 'This area is off, so none of its rules are installed.'),
-                h('button', { type: 'button', class: 'btn small go', onclick: () => update({ domains: [...cfg.domains, id] }) }, `Turn on ${d.name}`)),
+            head(t('Area'), d.name, d.blurb),
+            !on && h('div', { class: 'banner' }, h('span', {}, t('This area is off, so none of its rules are installed.')),
+                h('button', { type: 'button', class: 'btn small go', onclick: () => update({ domains: [...cfg.domains, id] }) }, t('Turn on {name}', { name: d.name }))),
             h('div', { class: 'toolbar' },
-                h('input', { type: 'text', class: 'search', placeholder: 'Filter rules', 'aria-label': 'Filter rules', value: ui.q, oninput: (e) => { ui.q = e.target.value; draw(); } }),
-                h('div', { class: 'toggle', role: 'group', 'aria-label': 'Show' }, ['all', 'on', 'off', 'must', 'should', 'enforced'].map((f) => h('button', { type: 'button', 'aria-pressed': String(ui.filter === f), onclick: (e) => {
+                h('input', { type: 'text', class: 'search', placeholder: t('Filter rules'), 'aria-label': t('Filter rules'), value: ui.q, oninput: (e) => { ui.q = e.target.value; draw(); } }),
+                h('div', { class: 'toggle', role: 'group', 'aria-label': t('Show') }, Object.keys(filters).map((f) => h('button', { type: 'button', 'data-filter': f, 'aria-pressed': String(ui.filter === f), onclick: (e) => {
                     ui.filter = f;
                     for (const b of e.target.parentNode.children) b.setAttribute('aria-pressed', String(b === e.target));
                     draw();
-                } }, f))),
-                count,
+                } }, filters[f]))),
+                shownCount,
                 h('span', { class: 'spacer' }),
-                on && h('button', { type: 'button', class: 'btn small', onclick: () => update({ off: without(cfg.off), on: [...without(cfg.on), ...rules.filter((r) => !isDefaultOn(r, cfg)).map((r) => r.id)] }) }, 'All on'),
-                on && h('button', { type: 'button', class: 'btn small', onclick: () => update({ off: without(cfg.off), on: without(cfg.on) }) }, `Reset to ${cfg.strictness}`)),
+                on && h('button', { type: 'button', class: 'btn small', onclick: () => update({ off: without(cfg.off), on: [...without(cfg.on), ...rules.filter((r) => !isDefaultOn(r, cfg)).map((r) => r.id)] }) }, t('All on')),
+                on && h('button', { type: 'button', class: 'btn small', onclick: () => update({ off: without(cfg.off), on: without(cfg.on) }) }, t('Reset to {level}', { level: JA ? strictnessIn(LANG, cfg.strictness).name : cfg.strictness }))),
             list,
-            on && h('div', { class: 'add' }, text, lvl, h('button', { type: 'button', class: 'btn small go', onclick: add }, 'Add rule'))
+            on && h('div', { class: 'add' }, input, lvl, h('button', { type: 'button', class: 'btn small go', onclick: add }, t('Add rule')))
         ];
     },
 
     import() {
         const preview = h('div', { id: 'rules-preview', role: 'status', 'aria-live': 'polite' });
-        const fallback = h('select', { id: 'rules-fallback' }, DOMAINS.map((d) => h('option', { value: d.id }, d.name)));
-        const text = h('textarea', { id: 'rules-text', rows: 6, spellcheck: false, placeholder: 'rule,level,area,source\n"Get approval before using AI on performance data.",must,HR,AI Policy 5.2' });
-        const templates = policyTemplates();
-        const group = (kind, label) => h('optgroup', { label }, templates.filter((t) => t.kind === kind).map((t) => h('option', { value: t.id }, t.name)));
-        const tplPick = h('select', { id: 'tpl-pick' }, group('persona', 'By role'), group('area', 'By area'));
+        const fallback = h('select', { id: 'rules-fallback' }, DOMAINS.map((d) => h('option', { value: d.id }, domain(d.id).name)));
+        const box = h('textarea', { id: 'rules-text', rows: 6, spellcheck: false, placeholder: 'rule,level,area,source\n"Get approval before using AI on performance data.",must,HR,AI Policy 5.2' });
+        const templates = policyTemplates(LANG);
+        const group = (kind, label) => h('optgroup', { label }, templates.filter((x) => x.kind === kind).map((x) => h('option', { value: x.id }, x.name)));
+        const tplPick = h('select', { id: 'tpl-pick' }, group('persona', t('By role')), group('area', t('By area')));
         let pending = null;
 
         const show = (res, name) => {
@@ -227,72 +271,71 @@ const views = {
             for (const s of res.skipped) (reasons[s.reason] ||= []).push(s.row);
             const areasIn = new Set([...Object.keys(byArea), ...res.on.map((id) => id.split('.')[0])]);
             const newAreas = [...areasIn].filter((d) => !cfg.domains.includes(d)).map((d) => domain(d).name);
-            const from = name ? ` in ${name}` : '';
-            const summary = res.rules.length
-                ? `Found ${plural(res.rules.length, 'rule')} of your own${from}: ${Object.entries(byArea).map(([d, n]) => `${n} ${domain(d).name}`).join(' · ')}.`
-                : res.on.length ? `Read the template${from}. No rule text was changed.` : `No rules could be read${name ? ` from ${name}` : ''}.`;
+            const areas = Object.entries(byArea).map(([d, n]) => `${n} ${domain(d).name}`).join(' · ');
+            const rules = count(res.rules.length, 'rule');
+            let summary;
+            if (res.rules.length) summary = name ? t('Found {rules} of your own in {name}: {areas}.', { rules, name, areas }) : t('Found {rules} of your own: {areas}.', { rules, areas });
+            else if (res.on.length) summary = name ? t('Read the template in {name}. No rule text was changed.', { name }) : t('Read the template. No rule text was changed.');
+            else summary = name ? t('No rules could be read from {name}.', { name }) : t('No rules could be read.');
+            const skippedLine = ([why, rows]) => {
+                const vars = { n: rows.length, why, rows: `${rows.slice(0, 12).join(', ')}${rows.length > 12 ? '…' : ''}` };
+                return h('li', {}, rows.length > 1 ? t('Skipped {n} ({why}): rows {rows}.', vars) : t('Skipped {n} ({why}): row {rows}.', vars));
+            };
             fill(preview,
                 h('p', { class: 'sum' + (pending ? '' : ' bad') }, summary),
                 (res.notes.length || res.skipped.length || newAreas.length) ? h('ul', {},
                     res.notes.map((n) => h('li', {}, n)),
-                    Object.entries(reasons).map(([why, rows]) => h('li', {}, `Skipped ${rows.length} (${why}): row${rows.length > 1 ? 's' : ''} ${rows.slice(0, 12).join(', ')}${rows.length > 12 ? '…' : ''}.`)),
-                    newAreas.length ? h('li', {}, `Applying this also turns on: ${newAreas.join(', ')}.`) : null) : null,
+                    Object.entries(reasons).map(skippedLine),
+                    newAreas.length ? h('li', {}, t('Applying this also turns on: {areas}.', { areas: newAreas.join(JA ? '、' : ', ') })) : null) : null,
                 res.rules.length ? ruleTable(res.rules.slice(0, 100)) : null,
-                res.rules.length > 100 ? h('p', { class: 'hint' }, `Showing the first 100 of ${res.rules.length}.`) : null,
+                res.rules.length > 100 ? h('p', { class: 'hint' }, t('Showing the first 100 of {n}.', { n: res.rules.length })) : null,
                 pending ? h('div', { class: 'row' },
                     h('button', { type: 'button', class: 'btn small go', onclick: () => {
                         const applied = pending;
                         update(applyImport(cfg, applied));
-                        toast(applied.on.length ? 'Template applied' : `Added ${plural(applied.rules.length, 'rule')}`);
-                    } }, res.on.length ? 'Apply this template' : `Add ${plural(res.rules.length, 'rule')}`),
-                    h('button', { type: 'button', class: 'btn small', onclick: () => { pending = null; fill(preview); } }, 'Discard')) : null);
+                        toast(applied.on.length ? t('Template applied') : t('Added {rules}', { rules: count(applied.rules.length, 'rule') }));
+                    } }, res.on.length ? t('Apply this template') : t('Add {rules}', { rules })),
+                    h('button', { type: 'button', class: 'btn small', onclick: () => { pending = null; fill(preview); } }, t('Discard'))) : null);
         };
-        const read = (body, name) => show(parseRules(body, { name, fallback: fallback.value, existing: cfg.custom }), name);
+        const read = (body, name) => show(parseRules(body, { name, fallback: fallback.value, existing: cfg.custom, lang: LANG }), name);
         const readFile = async (file) => {
             if (!file) return;
-            if (file.size > 2_000_000) return show({ rules: [], on: [], off: [], replaces: [], skipped: [], notes: ['That file is larger than 2 MB. Export only the rules.'] }, file.name);
+            if (file.size > 2_000_000) return show({ rules: [], on: [], off: [], replaces: [], skipped: [], notes: [t('That file is larger than 2 MB. Export only the rules.')] }, file.name);
             read(await file.text(), file.name);
         };
 
         const input = h('input', { type: 'file', id: 'rules-file', accept: '.csv,.tsv,.json,.txt,text/csv,application/json', onchange: (e) => { readFile(e.target.files[0]); e.target.value = ''; } });
-        const drop = h('div', { class: 'drop', id: 'rules-drop' }, input, h('label', { for: 'rules-file', class: 'btn small' }, 'Choose a file'), h('span', {}, 'or drop one here, or paste below'));
+        const drop = h('div', { class: 'drop', id: 'rules-drop' }, input, h('label', { for: 'rules-file', class: 'btn small' }, t('Choose a file')), h('span', {}, t('or drop one here, or paste below')));
         for (const ev of ['dragenter', 'dragover']) drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); });
         for (const ev of ['dragleave', 'drop']) drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); });
         drop.addEventListener('drop', (e) => readFile(e.dataTransfer?.files?.[0]));
 
         return [
-            head('Your rules', 'Templates and import', 'Download a policy template to edit, or bring the rules your organization already keeps. Files are read in this tab and are not uploaded anywhere.'),
+            head(t('Your rules'), t('Templates and import'), t('Download a policy template to edit, or bring the rules your organization already keeps. Files are read in this tab and are not uploaded anywhere.')),
             h('section', { class: 'block first' },
-                h('h2', {}, 'Start from a policy template'),
-                h('p', { class: 'hint' }, 'Download the rules for a role or an area as a CSV file. Edit the wording in a spreadsheet, delete the rows that do not apply and add rows of your own. Then import the file below. Rows you leave alone stay catalog rules, and rows you change become your rules.'),
+                h('h2', {}, t('Start from a policy template')),
+                h('p', { class: 'hint' }, t('Download the rules for a role or an area as a CSV file. Edit the wording in a spreadsheet, delete the rows that do not apply and add rows of your own. Then import the file below. Rows you leave alone stay catalog rules, and rows you change become your rules.')),
                 h('div', { class: 'row' },
-                    h('label', { for: 'tpl-pick', class: 'hint' }, 'Template'), tplPick,
-                    h('button', { type: 'button', class: 'btn small go', id: 'tpl-download', onclick: () => download(templateFileName(tplPick.value), templateCsv(tplPick.value)) }, 'Download CSV'))),
+                    h('label', { for: 'tpl-pick', class: 'hint' }, t('Template')), tplPick,
+                    h('button', { type: 'button', class: 'btn small go', id: 'tpl-download', onclick: () => download(templateFileName(tplPick.value), templateCsv(tplPick.value, LANG)) }, t('Download CSV')))),
             h('section', { class: 'block' },
-                h('h2', {}, 'Import a file'),
-                h('p', { class: 'hint' }, 'Columns or keys: ', h('code', {}, 'rule'), ' ', h('code', {}, 'level'), ' ', h('code', {}, 'area'), ' ', h('code', {}, 'source'), '. Only ', h('code', {}, 'rule'), ' is required. A template also has ', h('code', {}, 'id'), ' and ', h('code', {}, 'title'), '.'),
+                h('h2', {}, t('Import a file')),
+                h('p', { class: 'hint' }, t('Columns or keys: rule, level, area, source. Only rule is required. A template also has id and title.')),
                 drop,
-                h('div', { class: 'field' }, h('label', { for: 'rules-text' }, 'Paste CSV or JSON'), text),
+                h('div', { class: 'field' }, h('label', { for: 'rules-text' }, t('Paste CSV or JSON')), box),
                 h('div', { class: 'row' },
-                    h('label', { for: 'rules-fallback', class: 'hint' }, 'Area when a rule names none'), fallback,
-                    h('button', { type: 'button', class: 'btn small go', id: 'rules-parse', onclick: () => read(text.value, '') }, 'Read rules'),
-                    h('button', { type: 'button', class: 'btn small', id: 'rules-tpl-csv', onclick: () => download('komainu-rules-blank.csv', TEMPLATE_CSV) }, 'Blank CSV'),
-                    h('button', { type: 'button', class: 'btn small', id: 'rules-tpl-json', onclick: () => download('komainu-rules-blank.json', TEMPLATE_JSON) }, 'Blank JSON')),
+                    h('label', { for: 'rules-fallback', class: 'hint' }, t('Area when a rule names none')), fallback,
+                    h('button', { type: 'button', class: 'btn small go', id: 'rules-parse', onclick: () => read(box.value, '') }, t('Read rules')),
+                    h('button', { type: 'button', class: 'btn small', id: 'rules-tpl-csv', onclick: () => download('komainu-rules-blank.csv', TEMPLATE_CSV) }, t('Blank CSV')),
+                    h('button', { type: 'button', class: 'btn small', id: 'rules-tpl-json', onclick: () => download('komainu-rules-blank.json', TEMPLATE_JSON) }, t('Blank JSON'))),
                 preview),
             cfg.custom.length ? h('section', { class: 'block' },
-                h('div', { class: 'mine' }, h('h2', {}, `${plural(cfg.custom.length, 'rule')} of your own`),
-                    h('button', { type: 'button', onclick: () => { update({ custom: [] }); toast('Your rules were removed'); } }, 'Remove all')),
+                h('div', { class: 'mine' }, h('h2', {}, t('{rules} of your own', { rules: count(cfg.custom.length, 'rule') })),
+                    h('button', { type: 'button', onclick: () => { update({ custom: [] }); toast(t('Your rules were removed')); } }, t('Remove all'))),
                 ruleTable(cfg.custom, (i) => update({ custom: cfg.custom.filter((_, n) => n !== i) }))) : null
         ];
     }
 };
-
-function ruleTable(rules, onRemove) {
-    return h('div', { class: 'mini' }, h('table', {},
-        h('thead', {}, h('tr', {}, ['Area', 'Level', 'Rule', 'Source', onRemove && ''].filter((t) => t !== undefined && t !== false).map((t) => h('th', { scope: 'col' }, t)))),
-        h('tbody', {}, rules.map((r, i) => h('tr', {}, h('td', {}, domain(r.d).name), h('td', {}, r.l), h('td', {}, r.x), h('td', {}, r.src || ''),
-            onRemove && h('td', {}, h('button', { type: 'button', class: 'x-btn', onclick: () => onRemove(i) }, 'Remove')))))));
-}
 
 function renderMain() {
     const [name, arg] = ui.view.split(':');
@@ -302,16 +345,23 @@ function renderMain() {
 // ── right: output ───────────────────────────────────────────────────────────
 function renderStats() {
     const s = stats(cfg);
-    const meter = h('div', { class: 'meter', role: 'img', 'aria-label': `${s.enforced} enforced, ${s.instructed} instructed, ${s.attested} attested` });
-    for (const k of ['enforced', 'instructed', 'attested']) if (s[k]) { const i = h('i', { class: k }); i.style.flex = String(s[k]); meter.append(i); }
+    const kinds = ['enforced', 'instructed', 'attested'];
+    const kindName = (k) => (JA ? cov(k).name : cov(k).name.toLowerCase());
+    const meter = h('div', { class: 'meter', role: 'img', 'aria-label': kinds.map((k) => `${s[k]} ${kindName(k)}`).join(', ') });
+    for (const k of kinds) {
+        if (!s[k]) continue;
+        const bar = h('i', { class: k });
+        bar.style.flex = String(s[k]);
+        meter.append(bar);
+    }
     fill($('stats'),
-        h('div', { class: 'big' }, `${plural(s.total, 'rule')} `, h('small', {}, `${s.must} must · ${s.should} should · ${plural(cfg.domains.length, 'area')}`)),
+        h('div', { class: 'big' }, `${count(s.total, 'rule')} `, h('small', {}, `${t('{n} must', { n: s.must })} · ${t('{n} should', { n: s.should })} · ${count(cfg.domains.length, 'area')}`)),
         meter,
-        h('div', { class: 'legend' }, ['enforced', 'instructed', 'attested'].map((k) => h('span', { title: COVERAGE[k].blurb }, h('span', { class: 'dot ' + k }), h('b', {}, String(s[k])), ' ' + COVERAGE[k].name.toLowerCase()))));
-    $('top-count').textContent = `${plural(s.total, 'rule')} · ${plural(generate(cfg).length, 'file')}`;
+        h('div', { class: 'legend' }, kinds.map((k) => h('span', { title: cov(k).blurb }, h('span', { class: 'dot ' + k }), h('b', {}, String(s[k])), ' ' + kindName(k)))));
+    $('top-count').textContent = t('{rules} · {files}', { rules: count(s.total, 'rule'), files: count(generate(cfg).length, 'file') });
 }
 
-const shellToggle = () => h('div', { class: 'toggle', role: 'group', 'aria-label': 'Shell' },
+const shellToggle = () => h('div', { class: 'toggle', role: 'group', 'aria-label': t('Shell') },
     [['sh', 'macOS / Linux'], ['ps', 'Windows']].map(([id, name]) => h('button', { type: 'button', 'aria-pressed': String(ui.shell === id), onclick: () => { ui.shell = id; renderPanel(); } }, name)));
 
 const command = () => cliCommand(cfg, { base: BASE, shell: ui.shell });
@@ -321,36 +371,36 @@ const panels = {
         const files = generate(cfg);
         const cmd = command();
         const long = cmd.length > 6000;
-        const label = ui.shell === 'ps' ? 'PowerShell' : 'Terminal';
+        const label = ui.shell === 'ps' ? 'PowerShell' : t('Terminal');
         return [
-            h('p', {}, `Run this in the root of the repository or folder where the guardrails should live. It writes ${plural(files.length, 'file')} and merges with what is already there.`),
+            h('p', {}, t('Run this in the root of the repository or folder where the guardrails should live. It writes {files} and merges with what is already there.', { files: count(files.length, 'file') })),
             h('div', { class: 'pick' }, shellToggle()),
             ...(long ? [
-                h('p', {}, h('strong', {}, 'This configuration is large. '), 'Some terminals cut very long commands, so download komainu.json into the folder and run the short command instead.'),
+                h('p', {}, h('strong', {}, t('This configuration is large. ')), t('Some terminals cut very long commands, so download komainu.json into the folder and run the short command instead.')),
                 codebox('komainu.json', JSON.stringify(compact(cfg), null, 2) + '\n', { file: 'komainu.json', nowrap: true }),
                 codebox(label, cmd.replace(/apply \S+$/, 'apply'))
             ] : [codebox(label, cmd)]),
             h('ol', {},
-                h('li', {}, ONLINE ? 'Downloads the Komainu CLI. It is one readable file with no dependencies, and it makes no network calls.' : 'Uses the komainu.mjs you downloaded with this page; keep it next to where you run the command.'),
-                h('li', {}, 'Your choices are inside the command. No server received them.'),
-                h('li', {}, 'Needs Node.js 18 or newer. Add --dry-run to preview without writing.'))
+                h('li', {}, ONLINE ? t('Downloads the Komainu CLI. It is one readable file with no dependencies, and it makes no network calls.') : t('Uses the komainu.mjs you downloaded with this page; keep it next to where you run the command.')),
+                h('li', {}, t('Your choices are inside the command. No server received them.')),
+                h('li', {}, t('Needs Node.js 18 or newer. Add --dry-run to preview without writing.')))
         ];
     },
     script() {
         const ps = ui.shell === 'ps';
-        const text = ps ? powershellScript(cfg) : bashScript(cfg);
+        const body = ps ? powershellScript(cfg) : bashScript(cfg);
         const name = ps ? 'install-guardrails.ps1' : 'install-guardrails.sh';
         return [
-            h('p', {}, 'A self-contained installer with every file inside it. No download and no Node.js needed. It never overwrites an existing file.'),
+            h('p', {}, t('A self-contained installer with every file inside it. No download and no Node.js needed. It never overwrites an existing file.')),
             h('div', { class: 'pick' }, shellToggle()),
-            codebox(`${name} · ${Math.ceil(text.length / 1024)} KB`, text, { file: name, nowrap: true }),
-            h('p', {}, ps ? 'Paste into PowerShell, or download and run: ./install-guardrails.ps1' : 'Paste into a terminal, or download and run: bash install-guardrails.sh')
+            codebox(`${name} · ${Math.ceil(body.length / 1024)} KB`, body, { file: name, nowrap: true }),
+            h('p', {}, ps ? t('Paste into PowerShell, or download and run: ./install-guardrails.ps1') : t('Paste into a terminal, or download and run: bash install-guardrails.sh'))
         ];
     },
     agent() {
         return [
-            h('p', {}, 'Paste this into your coding agent. It reads your internal policy documents on your machine, maps each clause to a rule, shows you the gaps, and only then installs.'),
-            codebox('Prompt', agentPrompt(cfg, { base: BASE }))
+            h('p', {}, t('Paste this into your coding agent. It reads your internal policy documents on your machine, maps each clause to a rule, shows you the gaps, and only then installs.')),
+            codebox(t('Prompt'), agentPrompt(cfg, { base: BASE }))
         ];
     },
     files() {
@@ -359,43 +409,43 @@ const panels = {
         const f = files[ui.file];
         const writable = files.filter((x) => x.mode !== 'self');
         const downloadAll = () => download('komainu-guardrails.zip', zip(writable), 'application/zip');
-        const modes = { file: 'written by Komainu', block: 'managed block inside your file', json: 'merged into your settings', self: 'a copy of the CLI' };
+        const modes = { file: t('written by Komainu'), block: t('managed block inside your file'), json: t('merged into your settings'), self: t('a copy of the CLI') };
         return [
             h('ul', { class: 'tree', id: 'file-tree' }, files.map((x, i) => h('li', {}, h('button', { type: 'button', 'aria-current': i === ui.file ? 'true' : null, onclick: () => { ui.file = i; renderPanel(); } }, x.path)))),
-            codebox(`${f.path} · ${modes[f.mode]}`, f.mode === 'self' ? '(The komainu CLI copies itself here so the MCP server can run from the repository.)' : f.content, { file: f.mode === 'self' ? null : f.path.split('/').pop(), nowrap: f.path.endsWith('.mjs') || f.path.endsWith('.json'), actions: [['Download all', downloadAll]] }),
-            h('p', {}, `"Download all" saves ${plural(writable.length, 'file')} as one zip, in the folders shown above. Unzip it in the root of your repository. Unzipping replaces files of the same name, so use the command if the folder already has files such as AGENTS.md.${writable.length < files.length ? ' The copy of the CLI is not included; the command and the offline script cover it.' : ''}`)
+            codebox(`${f.path} · ${modes[f.mode]}`, f.mode === 'self' ? t('(The komainu CLI copies itself here so the MCP server can run from the repository.)') : f.content, { file: f.mode === 'self' ? null : f.path.split('/').pop(), nowrap: f.path.endsWith('.mjs') || f.path.endsWith('.json'), actions: [[t('Download all'), downloadAll]] }),
+            h('p', {}, t('"Download all" saves {files} as one zip, in the folders shown above. Unzip it in the root of your repository. Unzipping replaces files of the same name, so use the command if the folder already has files such as AGENTS.md.', { files: count(writable.length, 'file') }) + (writable.length < files.length ? t(' The copy of the CLI is not included; the command and the offline script cover it.') : ''))
         ];
     },
     quiz() {
         const options = { count: ui.quizCount, seed: ui.quizSeed ? String(ui.quizSeed) : '' };
         const made = buildQuiz(cfg, options);
-        const link = ONLINE ? quizLink(cfg, options, BASE) : '';
+        const link = ONLINE ? quizLink(cfg, options, PAGE_BASE) : '';
         const scenarios = made.questions.filter((q) => q.type === 'scenario').length;
         const sample = made.questions.find((q) => q.type === 'scenario') || made.questions[0];
         const save = (id) => download(QUIZ_FORMATS[id].file, QUIZ_FORMATS[id].render(made), QUIZ_FORMATS[id].type);
         return [
-            h('p', {}, 'A quiz made from the rules you selected, to share with your team for training. The HTML file works on its own: people open it, answer, and see the reason behind each answer. It records nothing.'),
+            h('p', {}, t('A quiz made from the rules you selected, to share with your team for training. The HTML file works on its own: people open it, answer, and see the reason behind each answer. It records nothing.')),
             h('div', { class: 'pick' },
-                h('label', { for: 'quiz-count' }, 'Questions'),
+                h('label', { for: 'quiz-count' }, t('Questions')),
                 h('select', { id: 'quiz-count', onchange: (e) => { ui.quizCount = Number(e.target.value); renderPanel(); } }, QUIZ_SIZES.map((n) => h('option', { value: n, selected: n === ui.quizCount }, String(n)))),
-                h('button', { type: 'button', class: 'btn small', id: 'quiz-shuffle', onclick: () => { ui.quizSeed++; renderPanel(); } }, 'Different questions')),
-            h('p', { id: 'quiz-summary' }, `${plural(made.total, 'question')}: ${scenarios} from written situations, ${made.total - scenarios} generated from the rule text. They cover ${plural(new Set(made.questions.map((q) => q.rule).filter(Boolean)).size, 'rule')}.`),
+                h('button', { type: 'button', class: 'btn small', id: 'quiz-shuffle', onclick: () => { ui.quizSeed++; renderPanel(); } }, t('Different questions'))),
+            h('p', { id: 'quiz-summary' }, t('{questions}: {scenarios} from written situations, {generated} generated from the rule text. They cover {rules}.', { questions: count(made.total, 'question'), scenarios, generated: made.total - scenarios, rules: count(new Set(made.questions.map((q) => q.rule).filter(Boolean)).size, 'rule') })),
             h('div', { class: 'row' },
-                h('button', { type: 'button', class: 'btn small go', id: 'quiz-html', onclick: () => save('html') }, 'Download quiz (HTML)'),
+                h('button', { type: 'button', class: 'btn small go', id: 'quiz-html', onclick: () => save('html') }, t('Download quiz (HTML)')),
                 h('button', { type: 'button', class: 'btn small', id: 'quiz-md', onclick: () => save('md') }, 'Markdown'),
                 h('button', { type: 'button', class: 'btn small', id: 'quiz-csv', onclick: () => save('csv') }, 'CSV')),
-            link ? codebox('Quiz link', link) : null,
-            link ? h('p', {}, h('a', { id: 'quiz-open', href: link, target: '_blank', rel: 'noopener' }, 'Open the quiz in a new tab'), '. Anyone with the link gets the same questions. The rules sit after the # in the address, which browsers do not send to any server, and your sensitive names are left out of it.') : null,
-            sample ? codebox(`Sample: question ${sample.n}`, `${sample.prompt}\n\n${sample.options.map((o, n) => `${'ABCD'[n]}. ${o}`).join('\n')}\n\nAnswer: ${'ABCD'[sample.answer]}`) : null,
-            h('p', {}, 'Markdown suits printing and wikis. CSV has one row per question for a form builder or a learning system.')
+            link ? codebox(t('Quiz link'), link) : null,
+            link ? h('p', {}, h('a', { id: 'quiz-open', href: link, target: '_blank', rel: 'noopener' }, t('Open the quiz in a new tab')), t('. Anyone with the link gets the same questions. The rules sit after the # in the address, which browsers do not send to any server, and your sensitive names are left out of it.')) : null,
+            sample ? codebox(t('Sample: question {n}', { n: sample.n }), `${sample.prompt}\n\n${sample.options.map((o, n) => `${'ABCD'[n]}. ${o}`).join('\n')}\n\n${t('Answer: {letter}', { letter: 'ABCD'[sample.answer] })}`) : null,
+            h('p', {}, t('Markdown suits printing and wikis. CSV has one row per question for a form builder or a learning system.'))
         ];
     },
     share() {
         const link = `${location.href.split('#')[0]}#c=${encode(cfg)}`;
         return [
-            h('p', {}, 'Send this link to a colleague to continue from the same choices. The configuration sits after the # in the address, which browsers do not send to any server.'),
-            codebox('Share link', link),
-            cfg.terms.length ? h('p', {}, h('strong', {}, 'Careful: '), 'this configuration contains your sensitive names. Share it only with people allowed to see them.') : null,
+            h('p', {}, t('Send this link to a colleague to continue from the same choices. The configuration sits after the # in the address, which browsers do not send to any server.')),
+            codebox(t('Share link'), link),
+            cfg.terms.length ? h('p', {}, h('strong', {}, t('Careful: ')), t('this configuration contains your sensitive names. Share it only with people allowed to see them.')) : null,
             codebox('komainu.json', JSON.stringify(compact(cfg), null, 2) + '\n', { file: 'komainu.json', nowrap: true })
         ];
     }
@@ -438,10 +488,19 @@ function init() {
     const fromHash = () => {
         const m = location.hash.match(/^#c=([A-Za-z0-9_-]+)/);
         if (!m) return false;
-        try { loadConfig(m[1], 'Loaded shared configuration'); return true; } catch { return false; }
+        try {
+            loadConfig(m[1], t('Loaded shared configuration'));
+            return true;
+        } catch {
+            return false;
+        }
     };
     window.addEventListener('hashchange', fromHash);
-    if (!fromHash()) { renderSide(); renderMain(); renderOutput(); }
+    if (!fromHash()) {
+        renderSide();
+        renderMain();
+        renderOutput();
+    }
 }
 
 init();

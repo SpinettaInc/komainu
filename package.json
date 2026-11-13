@@ -12,7 +12,7 @@
     "lint:js": "eslint .",
     "lint:css": "stylelint \"src/web/*.css\"",
     "lint:md": "markdownlint-cli2",
-    "lint:html": "node scripts/build.mjs && html-validate \"site/*.html\"",
+    "lint:html": "node scripts/build.mjs && html-validate \"site/*.html\" \"site/ja/*.html\"",
     "lint:prose": "node scripts/lint-prose.mjs",
     "check": "npm run lint && npm test",
     "serve": "python3 -m http.server 4173 --directory site"

@@ -42,7 +42,7 @@ Komainu is a static website and one JavaScript file. It has no server, no databa
 | Quiz page | Opens a quiz from a link, with nothing to download | `site/quiz.html` |
 | Templates | Browse the policy templates by role and by area, read every rule and download each as CSV | `site/templates.html` |
 | Builder | A full-width editor. Areas on the left, the rules being edited in the middle, the command and the generated files on the right | `site/builder.html` |
-| Offline builder | The builder as one HTML file that opens from disk | `site/komainu-standalone.html` |
+| Offline builder | The builder as one HTML file that opens from disk | `site/komainu-standalone.html`, `site/komainu-standalone-ja.html` |
 | Download all | On the builder's Files tab, one zip with every generated file in its folder | `src/core/zip.js` |
 | Training quiz | A quiz on the selected rules as one HTML file, or as Markdown or CSV | builder "quiz" tab, templates page, `komainu quiz` |
 | CLI | `init`, `apply`, `template`, `quiz`, `import`, `status`, `check`, `redact`, `export`, `catalog` | `site/komainu.mjs` |
@@ -130,6 +130,22 @@ The HTML file works on its own, from a shared drive or an email attachment. Peop
 
 About 46 rules have a written situation, such as "a coding agent asks to read the .env file". The other questions are generated from the rule text: which statement a rule is, whether it is a MUST or a SHOULD, and how it is upheld. Your own rules get the generated kinds. The same configuration and seed always give the same quiz.
 
+## Languages
+
+The website, the builder, the templates and the quiz are in English and in Japanese. The Japanese pages are under `/ja/`.
+
+The generated files have their own language setting, so a Japanese team can run the English site and still get Japanese files:
+
+```sh
+node komainu.mjs apply --lang ja             # write the files in Japanese and save the choice in komainu.json
+node komainu.mjs template governance --lang ja > policy.csv
+node komainu.mjs quiz --lang ja > quiz.html
+```
+
+All 185 rules, the area and template names, the policy document, the assistant packs, the agent prompt and the 46 quiz situations are translated. Column names in CSV files stay in English, and an import understands Japanese area names and the levels 必須 and 推奨. The messages the CLI and the hook print in a terminal, the MCP tool descriptions and the agent skill are in English only.
+
+The Japanese pages are built from the English ones: `scripts/ja-pages.mjs` holds the wording, and the build stops when a fragment no longer matches. Interface strings are in `src/web/ui.js`, and the catalog is in `src/core/ja-catalog.js` and `src/core/ja-scenarios.js`.
+
 ## Importing your own rules
 
 The builder's "Import CSV / JSON" section and `komainu import <file>` read rules you already keep. In the browser the file is parsed in the tab and is not uploaded.
@@ -207,7 +223,7 @@ npm run serve        # http://localhost:4173
 | `src/skill/` | The agent skill and its references |
 | `src/web/` | Landing page (`index.html`, `site.js`), templates page (`templates.html`, `templates.js`), both styled by `site.css`, and the builder (`builder.html`, `styles.css`, `builder.js`). `dom.js` is shared |
 | `scripts/` | `build.mjs` builds `site/`. `lint-prose.mjs` checks the writing |
-| `test/` | `node:test` suites, about 780 tests. The page tests drive the built pages in jsdom and run axe-core on them |
+| `test/` | `node:test` suites, more than 1,000 tests. The page tests drive the built pages in jsdom and run axe-core on them |
 | `site/` | The document root to deploy |
 
 To add a rule, add one line to `RULES` in `src/core/catalog.js`. The builder, the CLI, the MCP server and the skill's catalog reference all pick it up.

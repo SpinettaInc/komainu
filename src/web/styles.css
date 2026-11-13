@@ -317,3 +317,9 @@ footer span a { color: var(--ink); text-underline-offset: 3px; }
 /* text that only screen readers get */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .side :focus-visible, .tree :focus-visible, .tabs :focus-visible { outline-offset: -2px; }
+
+/* Japanese pages: system Japanese fonts after the Latin ones, no negative tracking, line breaks by phrase. */
+html[lang="ja"] { --sans: "Inter", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif; --display: "Space Grotesk", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif; line-break: strict; overflow-wrap: anywhere; }
+html[lang="ja"] body { line-height: 1.8; }
+html[lang="ja"] h1, html[lang="ja"] h2, html[lang="ja"] h3 { letter-spacing: 0; word-break: auto-phrase; line-height: 1.35; }
+html[lang="ja"] .kicker, html[lang="ja"] .btn.small { letter-spacing: .04em; }

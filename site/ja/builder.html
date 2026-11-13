@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Komainu ビルダー: AI ガードレールを編集する</title>
+<meta name="description" content="Komainu のガードレールエディター。領域を選び、ルールを確認し、独自のルールをインポートして、コマンドを 1 つコピーします。何も保存せず、何も送信しません。">
+<meta name="author" content="Spinetta Inc.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0B0D10">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232DD4BF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='24' height='24' rx='4' fill='%230B0D10' stroke='none'/%3E%3Cpath d='M12 3l8 3v6c0 4.500-3.500 7.500-8 9-4.500-1.500-8-4.500-8-9V6zM12 3v18M8 10.500v3M16 12h.01'/%3E%3C/svg%3E">
+<link rel="alternate" hreflang="en" href="../builder.html">
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body class="app">
+<a class="skip" href="#main">エディターへ移動</a>
+
+<header class="topbar">
+  <a class="brand" href="index.html" aria-label="Komainu ホーム" data-home><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.500-3.500 7.500-8 9-4.500-1.500-8-4.500-8-9V6z"/><path d="M12 3v18"/><path d="M8 10.500v3"/><path d="M16 12h.01"/></svg>komainu</a>
+  <span class="crumb">ビルダー</span>
+  <span class="private" title="このページにはバックエンドがなく、リクエストを送らず、ブラウザーのストレージも使いません。">保存なし · 送信なし</span>
+  <a class="crumb link" href="templates.html" data-online>テンプレート</a>
+  <a class="crumb link" href="../builder.html" lang="en" hreflang="en" data-online>English</a>
+  <span class="spacer"></span>
+  <span class="count" id="top-count" role="status"></span>
+  <button type="button" class="btn primary compact" id="top-copy">コマンドをコピー</button>
+</header>
+
+<div class="editor">
+  <nav class="side" id="side" aria-label="セクション"></nav>
+  <main class="main" id="main" tabindex="-1"></main>
+  <aside class="out" aria-label="出力">
+    <div id="stats" class="stats" role="status"></div>
+    <div class="tabs" role="tablist" aria-label="出力の種類">
+      <button type="button" role="tab" id="tab-command" aria-controls="panel" data-tab="command" aria-selected="true">コマンド</button>
+      <button type="button" role="tab" id="tab-script" aria-controls="panel" data-tab="script" aria-selected="false" tabindex="-1">オフラインスクリプト</button>
+      <button type="button" role="tab" id="tab-agent" aria-controls="panel" data-tab="agent" aria-selected="false" tabindex="-1">AI エージェント</button>
+      <button type="button" role="tab" id="tab-files" aria-controls="panel" data-tab="files" aria-selected="false" tabindex="-1">ファイル</button>
+      <button type="button" role="tab" id="tab-quiz" aria-controls="panel" data-tab="quiz" aria-selected="false" tabindex="-1">クイズ</button>
+      <button type="button" role="tab" id="tab-share" aria-controls="panel" data-tab="share" aria-selected="false" tabindex="-1">共有</button>
+    </div>
+    <div id="panel" class="panel" role="tabpanel" aria-labelledby="tab-command"></div>
+  </aside>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="../assets/builder.js" defer></script>
+</body>
+</html>

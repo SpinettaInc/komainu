@@ -1,8 +1,14 @@
 // Small DOM helpers shared by the landing page and the builder.
 // Nothing here touches the network or browser storage.
 
+import { t, LANG } from './ui.js';
+
+export { LANG };
 export const ONLINE = /^https?:$/.test(location.protocol);
-export const BASE = ONLINE ? new URL('.', location.href).href.replace(/\/$/, '') : '';
+/** The folder this page is in. Links to sibling pages keep the page's language. */
+export const PAGE_BASE = ONLINE ? new URL('.', location.href).href.replace(/\/$/, '') : '';
+/** The site root, where komainu.mjs and the skill live. Japanese pages sit one folder down. */
+export const BASE = LANG === 'ja' ? PAGE_BASE.replace(/\/ja$/, '') : PAGE_BASE;
 export const $ = (id) => document.getElementById(id);
 const nil = (v) => v === null || v === undefined;
 
@@ -24,11 +30,11 @@ export const toggle = (arr, id, on) => (on ? [...new Set([...arr, id])] : arr.fi
 
 let toastTimer;
 export function toast(msg) {
-    const t = $('toast');
-    t.textContent = msg;
-    t.classList.add('show');
+    const box = $('toast');
+    box.textContent = msg;
+    box.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+    toastTimer = setTimeout(() => box.classList.remove('show'), 1800);
 }
 
 export async function copy(text) {
@@ -41,7 +47,7 @@ export async function copy(text) {
         document.execCommand('copy');
         ta.remove();
     }
-    toast('Copied');
+    toast(t('Copied'));
 }
 
 /** Saves text, or bytes with the given type, as a file. */
@@ -60,7 +66,7 @@ export function codebox(label, text, { file, nowrap, actions = [] } = {}) {
         h('div', { class: 'bar' }, h('span', {}, label),
             h('div', {},
                 actions.map(([name, run]) => h('button', { type: 'button', onclick: run }, name)),
-                file && h('button', { type: 'button', onclick: () => download(file, text) }, 'Download'),
-                h('button', { type: 'button', onclick: () => copy(text) }, 'Copy'))),
+                file && h('button', { type: 'button', onclick: () => download(file, text) }, t('Download')),
+                h('button', { type: 'button', onclick: () => copy(text) }, t('Copy')))),
         h('pre', { tabIndex: 0, role: 'region', 'aria-label': label }, text));
 }

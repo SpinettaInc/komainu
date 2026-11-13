@@ -2,6 +2,7 @@
 // It does not throw on odd rows. It reports them.
 
 import { DOMAINS, RULES } from './catalog.js';
+import { text, domainIn, ruleIn, AREA_NAMES_JA } from './i18n.js';
 import { MAX_CUSTOM } from './config.js';
 
 const MAX_TEXT = 600;
@@ -37,8 +38,8 @@ const AREA_ALIASES = {
     education: ['school', 'schools', 'university', 'teaching', 'students', 'academic']
 };
 
-const MUST = ['must', 'shall', 'required', 'mandatory', 'critical', 'high', 'blocker', 'never', 'always', 'hard', 'error'];
-const SHOULD = ['should', 'recommended', 'recommend', 'optional', 'advisory', 'medium', 'low', 'nice to have', 'prefer', 'soft', 'warning', 'warn', 'info'];
+const MUST = ['must', 'shall', 'required', 'mandatory', 'critical', 'high', 'blocker', 'never', 'always', 'hard', 'error', '必須', '義務', '高'];
+const SHOULD = ['should', 'recommended', 'recommend', 'optional', 'advisory', 'medium', 'low', 'nice to have', 'prefer', 'soft', 'warning', 'warn', 'info', '推奨', '任意', '中', '低'];
 
 // Control characters are stripped from imported text on purpose.
 // eslint-disable-next-line no-control-regex
@@ -51,6 +52,8 @@ const fieldOf = (name) => Object.keys(FIELDS).find((f) => FIELDS[f].includes(key
 export function areaId(value) {
     const k = key(value);
     if (!k) return null;
+    const ja = Object.keys(AREA_NAMES_JA).find((id) => key(AREA_NAMES_JA[id]) === k);
+    if (ja) return ja;
     for (const d of DOMAINS) {
         if (k === d.id || k === key(d.name) || AREA_ALIASES[d.id].includes(k)) return d.id;
     }
@@ -61,19 +64,19 @@ export function areaId(value) {
 }
 
 /** Level from an explicit value, else from the wording of the rule itself. */
-function levelOf(value, text) {
+function levelOf(value, body) {
     const k = key(value);
     if (MUST.includes(k)) return 'must';
     if (SHOULD.includes(k)) return 'should';
-    const t = ` ${text.toLowerCase()} `;
+    const t = ` ${body.toLowerCase()} `;
     const soft = /\b(should|recommended|prefer(ably)?|where possible|ideally|consider|try to|encouraged)\b/.test(t);
     const hard = /\b(must|shall|never|do not|don't|may not|only|always|prohibited|forbidden|required)\b/.test(t);
     return soft && !hard ? 'should' : 'must';
 }
 
 /** RFC 4180-style CSV with quoted fields; delimiter is detected (comma, semicolon or tab). */
-export function parseCsv(text) {
-    const src = String(text).replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+export function parseCsv(source) {
+    const src = String(source).replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
     const firstLine = src.split('\n').find((l) => l.trim()) || '';
     const count = (ch) => firstLine.replace(/"[^"]*"/g, '').split(ch).length - 1;
     const delim = [',', ';', '\t'].sort((a, b) => count(b) - count(a))[0];
@@ -92,14 +95,14 @@ export function parseCsv(text) {
     return rows.filter((r) => r.some((c) => c.trim() !== ''));
 }
 
-function recordsFromCsv(text, notes) {
-    const rows = parseCsv(text);
+function recordsFromCsv(source, notes, M) {
+    const rows = parseCsv(source);
     if (!rows.length) return [];
     // One-letter names are JSON keys of komainu.json, not column headers.
     const header = rows[0].map((name) => (clean(name).length > 1 ? fieldOf(name) : undefined));
     if (header.includes('x')) {
         const unknown = rows[0].filter((_, i) => !header[i] && rows[0][i].trim());
-        if (unknown.length) notes.push(`Ignored column${unknown.length > 1 ? 's' : ''}: ${unknown.map(clean).join(', ')}.`);
+        if (unknown.length) notes.push(M.ignored(unknown.map(clean)));
         return rows.slice(1).map((r, i) => {
             const rec = { row: i + 2 };
             header.forEach((f, c) => { if (f && rec[f] === undefined) rec[f] = r[c]; });
@@ -111,13 +114,11 @@ function recordsFromCsv(text, notes) {
     const avg = (c) => rows.reduce((n, r) => n + clean(r[c]).length, 0) / rows.length;
     let textCol = 0;
     for (let c = 1; c < width; c++) if (avg(c) > avg(textCol)) textCol = c;
-    notes.push(width > 1
-        ? `No header row found, so column ${textCol + 1} was read as the rule text. Add a header row (rule, level, area, source) for full control.`
-        : 'No header row found, so every line was read as one rule.');
+    notes.push(width > 1 ? M.noHeaderCols(textCol + 1) : M.noHeaderLines);
     return rows.map((r, i) => ({ row: i + 1, x: r[textCol] }));
 }
 
-function recordsFromJson(data, notes) {
+function recordsFromJson(data, notes, M) {
     const out = [];
     const push = (item, area) => {
         if (typeof item === 'string') { out.push({ row: out.length + 1, x: item, d: area }); return; }
@@ -134,7 +135,7 @@ function recordsFromJson(data, notes) {
     if (data && typeof data === 'object') {
         const list = ['rules', 'custom', 'guardrails', 'policies', 'items', 'data'].find((k) => Array.isArray(data[k]));
         if (list) {
-            if (list === 'custom' && data.v === 1) notes.push('This is a komainu.json; only its custom rules were read. Use "Already have a configuration?" in step 1 to load all of it.');
+            if (list === 'custom' && data.v === 1) notes.push(M.isConfig);
             data[list].forEach((it) => push(it));
             return out;
         }
@@ -142,7 +143,7 @@ function recordsFromJson(data, notes) {
         const grouped = Object.entries(data).filter(([, v]) => Array.isArray(v));
         if (grouped.length) { for (const [area, items] of grouped) items.forEach((it) => push(it, area)); return out; }
     }
-    throw new Error('JSON must be a list of rules, or an object with a "rules" list, or lists of rules keyed by area.');
+    throw new Error(M.jsonShape);
 }
 
 /**
@@ -160,26 +161,27 @@ function recordsFromJson(data, notes) {
  * `fallback` is the area for rules with no (or an unknown) area.
  * `existing` are the current custom rules, used to drop duplicates.
  */
-export function parseRules(text, { name = '', fallback = 'core', existing = [] } = {}) {
-    const body = String(text ?? '').replace(/^\uFEFF/, '').trim();
+export function parseRules(source, { name = '', fallback = 'core', existing = [], lang = 'en' } = {}) {
+    const M = text(lang).imp;
+    const body = String(source ?? '').replace(/^\uFEFF/, '').trim();
     const notes = [];
     const skipped = [];
     const empty = { rules: [], on: [], off: [], replaces: [], skipped };
-    if (!body) return { format: null, ...empty, notes: ['The file is empty.'] };
+    if (!body) return { format: null, ...empty, notes: [M.empty] };
 
     const looksJson = /\.json$/i.test(name) || /^[[{]/.test(body);
     let records;
     let format = 'csv';
     if (looksJson) {
         try {
-            records = recordsFromJson(JSON.parse(body), notes);
+            records = recordsFromJson(JSON.parse(body), notes, M);
             format = 'json';
         } catch (e) {
-            if (/\.json$/i.test(name) || !body.includes('\n')) return { format: 'json', ...empty, notes: [`Could not read the JSON: ${e.message}`] };
+            if (/\.json$/i.test(name) || !body.includes('\n')) return { format: 'json', ...empty, notes: [M.badJson(e.message)] };
             records = null; // not JSON; try CSV
         }
     }
-    if (!records) records = recordsFromCsv(body, notes);
+    if (!records) records = recordsFromCsv(body, notes, M);
 
     const on = [];
     const off = [];
@@ -194,7 +196,7 @@ export function parseRules(text, { name = '', fallback = 'core', existing = [] }
     for (const rec of records) {
         let x = clean(rec.x);
         if (x.length < 4) {
-            skipped.push({ row: rec.row, reason: x ? 'too short to be a rule' : 'no rule text' });
+            skipped.push({ row: rec.row, reason: x ? M.short : M.noText });
             continue;
         }
         const known = RULES.find((r) => r.id === clean(rec.id));
@@ -208,7 +210,7 @@ export function parseRules(text, { name = '', fallback = 'core', existing = [] }
         if (known) {
             listed.add(known.id);
             replaces.push(known.id); // an earlier edit of this row no longer applies
-            if (x === clean(known.x) && l === known.l && d === known.d) {
+            if ((x === clean(known.x) || x === clean(ruleIn('ja', known).x)) && l === known.l && d === known.d) {
                 on.push(known.id);
                 continue;
             }
@@ -220,11 +222,11 @@ export function parseRules(text, { name = '', fallback = 'core', existing = [] }
             truncated++;
         }
         if (seen.has(key(x))) {
-            skipped.push({ row: rec.row, reason: 'duplicate' });
+            skipped.push({ row: rec.row, reason: M.duplicate });
             continue;
         }
         if (rules.length + kept.length >= MAX_CUSTOM) {
-            skipped.push({ row: rec.row, reason: `over the limit of ${MAX_CUSTOM} custom rules` });
+            skipped.push({ row: rec.row, reason: M.overLimit(MAX_CUSTOM) });
             continue;
         }
         seen.add(key(x));
@@ -238,11 +240,11 @@ export function parseRules(text, { name = '', fallback = 'core', existing = [] }
         const areas = new Set([...listed].map((id) => RULES.find((r) => r.id === id).d));
         const removed = RULES.filter((r) => areas.has(r.d) && !listed.has(r.id)).map((r) => r.id);
         off.push(...removed);
-        notes.push(`This is a policy template with rule ids. ${on.length} catalog rule${on.length === 1 ? ' is' : 's are'} kept as written, ${edited} ${edited === 1 ? 'was' : 'were'} edited, and ${removed.length} not in the file ${removed.length === 1 ? 'is' : 'are'} switched off.`);
+        notes.push(M.template(on.length, edited, removed.length));
     }
-    if (truncated) notes.push(`${truncated} rule${truncated > 1 ? 's were' : ' was'} longer than ${MAX_TEXT} characters and cut. Split long clauses into one obligation per rule.`);
-    if (unknownAreas.size) notes.push(`Unrecognized area${unknownAreas.size > 1 ? 's' : ''} (${[...unknownAreas].slice(0, 6).join(', ')}) filed under ${DOMAINS.find((dom) => dom.id === fallback).name}.`);
-    if (!rules.length && !on.length && !skipped.length) notes.push('No rules found.');
+    if (truncated) notes.push(M.truncated(truncated, MAX_TEXT));
+    if (unknownAreas.size) notes.push(M.unknownAreas([...unknownAreas].slice(0, 6), domainIn(lang, fallback).name));
+    if (!rules.length && !on.length && !skipped.length) notes.push(M.none);
     return { format, rules, on, off, replaces, skipped, notes };
 }
 

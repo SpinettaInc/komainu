@@ -4,6 +4,7 @@
 import { VERSION } from './catalog.js';
 import { encode, compact, normalize, stats } from './config.js';
 import { generate } from './generate.js';
+import { text } from './i18n.js';
 
 const trimBase = (base) => String(base || '').replace(/\/+$/, '');
 
@@ -89,28 +90,10 @@ export function powershellScript(input) {
 /** A prompt that asks a local AI agent to tailor the draft to internal policy. */
 export function agentPrompt(input, { base = '' } = {}) {
     const cfg = normalize(input);
+    const T = text(cfg.lang);
     const b = trimBase(base);
-    const http = /^https?:\/\//.test(b);
-    return [
-        'Use the komainu-guardrails skill to build AI guardrails for this organization, tailored to our internal policies.',
-        '',
-        http
-            ? `If the skill is not installed yet, install it first: download ${b}/komainu.mjs and run \`node komainu.mjs skill install\`.`
-            : 'If the skill is not installed yet, install it first with `node komainu.mjs skill install` using our local copy of the komainu CLI.',
-        '',
-        'Starting configuration (drafted in the Komainu web builder):',
-        '',
-        '```json',
-        JSON.stringify(compact(cfg), null, 2),
-        '```',
-        '',
-        'What I want:',
-        '',
-        '1. Ask me where our internal policies live (for example an acceptable-use policy, security policy, code of conduct, data classification standard, brand guidelines) and read them locally. Do not send their contents to any service other than the model you are already running on, and tell me first if any of them is classified above what this model is approved for.',
-        '2. Compare each policy clause with the Komainu catalog. Turn matching clauses into catalog rules, clauses with no match into custom rules that cite the source clause, and list anything in the draft that our policy contradicts.',
-        '3. Show me the proposed komainu.json and a coverage table (policy clause → rule → enforced / instructed / attested) before writing anything.',
-        '4. After I approve, run `komainu apply`, then `komainu status`, and summarize what was installed and which rules still depend on people.'
-    ].join('\n');
+    const install = /^https?:\/\//.test(b) ? T.installOnline(b) : T.installLocal;
+    return T.agentPrompt(JSON.stringify(compact(cfg), null, 2), install);
 }
 
 /** Snippets for registering the MCP server with common clients. */

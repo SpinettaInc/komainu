@@ -7,6 +7,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { toJapanese } from './ja-pages.mjs';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const src = (...p) => path.join(root, 'src', ...p);
@@ -44,21 +45,33 @@ fs.cpSync(src('web', 'fonts'), out('fonts'), { recursive: true });
 fs.copyFileSync(src('web', 'logo.svg'), out('logo.svg'));
 
 const csp = (script, style, font = "'self'") => `default-src 'none'; script-src ${script}; style-src ${style}; font-src ${font}; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'`;
-const page = (name) => fs.readFileSync(src('web', name), 'utf8')
+const fillIn = (html) => html
     .replaceAll('__VERSION__', VERSION).replaceAll('__CLI_SHA__', sha256(cli))
     .replaceAll('__RULES__', String(RULES.length)).replaceAll('__AREAS__', String(DOMAINS.length)).replaceAll('__TARGETS__', String(TARGETS.length)).replaceAll('__PRESETS__', String(PRESETS.length))
     .replaceAll('__N_STRICT__', total('strict')).replaceAll('__N_BALANCED__', total('balanced')).replaceAll('__N_ADVISORY__', total('advisory'));
-for (const name of ['index.html', 'builder.html', 'templates.html', 'quiz.html']) write(out(name), page(name).replace('__CSP__', csp("'self'", "'self'")));
+// The Japanese pages are the same markup with the wording swapped, written under ja/.
+const page = (name, lang = 'en') => {
+    const html = fs.readFileSync(src('web', name), 'utf8');
+    return fillIn(lang === 'ja' ? toJapanese(name, html) : html);
+};
+for (const name of ['index.html', 'builder.html', 'templates.html', 'quiz.html']) {
+    write(out(name), page(name).replace('__CSP__', csp("'self'", "'self'")));
+    write(out('ja', name), page(name, 'ja').replace('__CSP__', csp("'self'", "'self'")));
+}
 
 // 3. Standalone builder: one file, usable from file:// with no connection.
 // It cannot carry font files, so it falls back to system fonts.
 const cssAlone = css.replace(/\/\* fonts:start \*\/[\s\S]*?\/\* fonts:end \*\/\n*/, '');
 const inlineJs = fs.readFileSync(out('assets', 'builder.js'), 'utf8').replace(/<\/script/gi, '<\\/script');
-write(out('komainu-standalone.html'), page('builder.html')
+const standalone = (lang) => page('builder.html', lang)
     .replace('__CSP__', csp(`'sha256-${sha256(inlineJs, 'base64')}'`, `'sha256-${sha256(cssAlone, 'base64')}'`, "'none'"))
-    .replace('<link rel="stylesheet" href="assets/styles.css">', () => `<style>${cssAlone}</style>`)
-    .replace('<script src="assets/builder.js" defer></script>', () => `<script>${inlineJs}</script>`)
-    .replace('href="index.html" aria-label="Komainu home" data-home', 'href="#" aria-label="Komainu"'));
+    .replace(/<link rel="alternate"[^>]*>\n/, '')
+    .replace(/<link rel="stylesheet" href="(\.\.\/)?assets\/styles\.css">/, () => `<style>${cssAlone}</style>`)
+    .replace(/<script src="(\.\.\/)?assets\/builder\.js" defer><\/script>/, () => `<script>${inlineJs}</script>`)
+    .replace(/href="index\.html" aria-label="([^"]*)" data-home/, 'href="#" aria-label="Komainu"')
+    .replace(/ {2}<a class="crumb link" [^>]*data-online>[^<]*<\/a>\n/g, '');
+write(out('komainu-standalone.html'), standalone('en'));
+write(out('komainu-standalone-ja.html'), standalone('ja'));
 
 // 4. Skill: browsable files plus archives. The CLI is bundled as its script.
 const skill = out('skill', 'komainu-guardrails');
@@ -76,10 +89,12 @@ write(out('_headers'), `/*
   Permissions-Policy: geolocation=(), camera=(), microphone=(), interest-cohort=()
 /komainu-standalone.html
   ! Content-Security-Policy
+/komainu-standalone-ja.html
+  ! Content-Security-Policy
 /komainu.mjs
   Content-Type: text/javascript; charset=utf-8
 `);
-const sums = ['komainu.mjs', 'komainu-standalone.html', 'skill/komainu-guardrails.tar.gz', 'skill/komainu-guardrails.zip']
+const sums = ['komainu.mjs', 'komainu-standalone.html', 'komainu-standalone-ja.html', 'skill/komainu-guardrails.tar.gz', 'skill/komainu-guardrails.zip']
     .filter((f) => fs.existsSync(out(f))).map((f) => `${sha256(fs.readFileSync(out(f)))}  ${f}`).join('\n') + '\n';
 write(out('SHA256SUMS'), sums);
 

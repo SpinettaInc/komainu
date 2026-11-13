@@ -3,9 +3,11 @@
 //
 // The same configuration and seed always give the same quiz, so a team can be
 // sent one file and a second, different one later by changing the seed.
+// The quiz is written in the configuration's language.
 
-import { COVERAGE, DOMAINS, VERSION } from './catalog.js';
-import { normalize, activeRules, encode, decode } from './config.js';
+import { DOMAINS, VERSION } from './catalog.js';
+import { normalize, activeRules, encode, decode, contactOf } from './config.js';
+import { text, coverageIn, scenarioIn, domainIn } from './i18n.js';
 import { SCENARIOS } from './scenarios.js';
 
 export const QUIZ_SIZES = [5, 10, 15, 20, 30];
@@ -13,7 +15,7 @@ export const QUIZ_SIZES = [5, 10, 15, 20, 30];
 // The parts of a configuration that decide the questions. Sensitive names,
 // the approved-tools list and the local route are left out, so a quiz link
 // never carries them.
-const QUIZ_FIELDS = ['org', 'strictness', 'domains', 'on', 'off', 'custom', 'contact', 'levels', 'hostedMax', 'redact', 'targets'];
+const QUIZ_FIELDS = ['org', 'strictness', 'domains', 'on', 'off', 'custom', 'contact', 'levels', 'hostedMax', 'redact', 'targets', 'lang'];
 
 /** The configuration reduced to what a quiz needs. */
 export function quizConfig(input) {
@@ -44,10 +46,10 @@ export function parseQuizLink(link) {
 }
 
 /** A small seeded random generator (mulberry32 over a string hash). */
-function seeded(text) {
+function seeded(source) {
     let h = 2166136261;
-    for (let i = 0; i < text.length; i++) {
-        h ^= text.charCodeAt(i);
+    for (let i = 0; i < source.length; i++) {
+        h ^= source.charCodeAt(i);
         h = Math.imul(h, 16777619);
     }
     return () => {
@@ -74,58 +76,58 @@ function question(rnd, base, right, wrong) {
     return { ...base, options, answer: options.indexOf(right) };
 }
 
-const quote = (text) => `"${text}"`;
+const KINDS = ['enforced', 'instructed', 'attested'];
 
-function forRule(rule, all, rnd) {
+function forRule(rule, all, rnd, lang) {
+    const T = text(lang);
     const base = { rule: rule.id, area: rule.d };
-    const why = `${rule.t ? `${rule.t}. ` : ''}${rule.x}`;
+    const why = T.whyRule(rule.t, rule.x);
     const out = [];
-    const scenario = !rule.custom && SCENARIOS[rule.id];
+    const scenario = !rule.custom && scenarioIn(lang, rule.id);
     if (scenario) out.push(question(rnd, { ...base, type: 'scenario', prompt: scenario.s, why }, scenario.a, scenario.w));
     const others = shuffle(all.filter((r) => r.id !== rule.id && r.t && r.x !== rule.x), rnd);
     const near = [...others.filter((r) => r.d === rule.d), ...others.filter((r) => r.d !== rule.d)].slice(0, 3);
     if (rule.t && near.length === 3) {
-        out.push(question(rnd, { ...base, type: 'statement', prompt: `Which of these is the rule ${quote(rule.t)}?`, why }, rule.x, near.map((r) => r.x)));
+        out.push(question(rnd, { ...base, type: 'statement', prompt: T.qStatement(T.quote(rule.t)), why }, rule.x, near.map((r) => r.x)));
     }
-    const levels = ['MUST: it is not negotiable.', 'SHOULD: it applies unless there is a documented reason.'];
-    out.push({ ...base, type: 'level', prompt: `Is this rule a MUST or a SHOULD? ${quote(rule.x)}`, options: levels, answer: rule.l === 'must' ? 0 : 1, why: `This is a ${rule.l.toUpperCase()} rule.` });
+    out.push({ ...base, type: 'level', prompt: T.qLevel(T.quote(rule.x)), options: [...T.levelOptions], answer: rule.l === 'must' ? 0 : 1, why: T.whyLevel(rule.l === 'must' ? T.must : T.should) });
     if (rule.t) {
-        const kinds = Object.keys(COVERAGE);
-        out.push({ ...base, type: 'upheld', prompt: `How is the rule ${quote(rule.t)} upheld here?`, options: kinds.map((k) => `${COVERAGE[k].name}: ${COVERAGE[k].blurb}`), answer: kinds.indexOf(rule.cov), why: `It is ${COVERAGE[rule.cov].name.toLowerCase()}. ${COVERAGE[rule.cov].blurb}` });
+        const mine = coverageIn(lang, rule.cov);
+        out.push({ ...base, type: 'upheld', prompt: T.qUpheld(T.quote(rule.t)), options: KINDS.map((id) => `${coverageIn(lang, id).name}: ${coverageIn(lang, id).blurb}`), answer: KINDS.indexOf(rule.cov), why: T.whyUpheld(mine.name, mine.blurb) });
     }
     return out;
 }
 
 function forConfig(cfg, rnd) {
+    const T = text(cfg.lang);
     const base = { rule: null, area: 'core', type: 'setup' };
     const out = [];
-    const contact = cfg.contact || 'the AI governance owner';
+    const contact = contactOf(cfg);
     if (cfg.levels.length > 2) {
-        out.push({ ...base, prompt: 'What is the highest data classification that may go into a hosted AI tool?', options: [...cfg.levels], answer: cfg.levels.indexOf(cfg.hostedMax), why: `Hosted AI services may receive data up to and including ${cfg.hostedMax}.` });
+        out.push({ ...base, prompt: T.qHosted, options: [...cfg.levels], answer: cfg.levels.indexOf(cfg.hostedMax), why: T.whyHosted(cfg.hostedMax) });
     }
-    out.push(question(rnd, { ...base, prompt: 'Sensitive data was pasted into an AI tool by mistake. Who do you tell?', why: `Questions and incidents go to ${contact}.` },
-        `${contact.charAt(0).toUpperCase()}${contact.slice(1)}, promptly.`, ['Nobody. Delete the chat and move on.', 'The AI vendor\'s support desk only.', 'Whoever asks about it later.']));
+    out.push(question(rnd, { ...base, prompt: T.qWho, why: T.whyWho(contact) }, T.aWho(contact), T.wWho));
     if (cfg.redact.includes('secrets')) {
-        out.push(question(rnd, { ...base, prompt: 'A password appears in text you need to share with an assistant. What goes in its place?', why: 'Credentials are replaced with [REDACTED_SECRET] or an environment-variable reference.' },
-            '[REDACTED_SECRET]', ['The first four characters of the password.', 'The password written backwards.', 'Nothing. The assistant needs the real value.']));
+        out.push(question(rnd, { ...base, prompt: T.qSecret, why: T.whySecret }, '[REDACTED_SECRET]', T.wSecret));
     }
     return out;
 }
 
 /**
- * config → { title, org, total, questions: [{ n, rule, area, type, prompt, options, answer, why }] }
+ * config → { title, org, lang, labels, total, questions: [{ n, rule, area, type, prompt, options, answer, why }] }
  *
  * `count` is the number of questions wanted; fewer come back when the rules
  * cannot fill it. `only` limits the quiz to some areas. `seed` changes the draw.
  */
 export function buildQuiz(input, { count = 10, seed = '', only } = {}) {
     const cfg = quizConfig(input);
+    const T = text(cfg.lang);
     const rnd = seeded(`${encode(cfg)}|${seed}|${(only || []).join(',')}`);
     const rules = activeRules(cfg).flatMap((g) => g.rules);
     const inScope = shuffle(rules.filter((r) => !only || only.includes(r.d)), rnd);
     // Rules with a written scenario come first: they make the better questions.
     const chosen = [...inScope.filter((r) => SCENARIOS[r.id]), ...inScope.filter((r) => !SCENARIOS[r.id])];
-    const perRule = chosen.map((r) => forRule(r, rules, rnd));
+    const perRule = chosen.map((r) => forRule(r, rules, rnd, cfg.lang));
     const setup = only ? [] : shuffle(forConfig(cfg, rnd), rnd).slice(0, Math.max(1, Math.round(count / 5)));
 
     // One question per rule first, best kind first. More kinds follow only when
@@ -137,32 +139,30 @@ export function buildQuiz(input, { count = 10, seed = '', only } = {}) {
         }
     }
     const questions = shuffle([...setup, ...picked], rnd).slice(0, count).map((q, i) => ({ n: i + 1, ...q }));
-    const areas = only ? only.map((id) => DOMAINS.find((d) => d.id === id).name).join(', ') : '';
+    const areas = only ? only.map((id) => domainIn(cfg.lang, id).name).join(T.listSep) : '';
     return {
-        title: `AI guardrails quiz${areas ? `: ${areas}` : ''}`,
+        title: T.quizTitle(areas),
         org: cfg.org,
-        contact: cfg.contact || 'the AI governance owner',
+        lang: cfg.lang,
+        contact: contactOf(cfg),
+        labels: T.labels,
         total: questions.length,
         questions
     };
 }
 
 const LETTERS = 'ABCDEFGH';
-const areaName = (id) => DOMAINS.find((d) => d.id === id).name;
+const heading = (quiz) => `${quiz.title}${quiz.org ? ` (${quiz.org})` : ''}`;
 
 export function quizMarkdown(quiz) {
-    const out = [
-        `# ${quiz.title}${quiz.org ? ` (${quiz.org})` : ''}`,
-        '',
-        `${quiz.total} questions on the AI guardrails in force. Choose one answer for each. The answers and the reasons are at the end.`,
-        ''
-    ];
+    const T = text(quiz.lang);
+    const out = [`# ${heading(quiz)}`, '', T.mdIntro(quiz.total), ''];
     for (const q of quiz.questions) {
-        out.push(`## Question ${q.n}`, '', q.prompt, '', ...q.options.map((o, i) => `- ${LETTERS[i]}. ${o}`), '');
+        out.push(T.mdQuestion(q.n), '', q.prompt, '', ...q.options.map((o, i) => `- ${LETTERS[i]}. ${o}`), '');
     }
-    out.push('## Answers', '', '| Question | Answer | Why |', '|---|---|---|');
+    out.push(T.mdAnswers, '', T.mdAnswersHead, '|---|---|---|');
     for (const q of quiz.questions) out.push(`| ${q.n} | ${LETTERS[q.answer]} | ${q.why.replace(/\|/g, '\\|')} |`);
-    out.push('', `Questions about a rule go to ${quiz.contact}.`, '');
+    out.push('', T.mdContact(quiz.contact), '');
     return out.join('\n');
 }
 
@@ -172,16 +172,16 @@ const cell = (v) => (/[",\n\r]/.test(String(v)) ? `"${String(v).replace(/"/g, '"
 export function quizCsv(quiz) {
     const width = Math.max(...quiz.questions.map((q) => q.options.length), 2);
     const header = ['number', 'area', 'question', ...Array.from({ length: width }, (_, i) => `option_${LETTERS[i].toLowerCase()}`), 'answer', 'explanation', 'rule'];
-    const rows = quiz.questions.map((q) => [q.n, areaName(q.area), q.prompt, ...Array.from({ length: width }, (_, i) => q.options[i] ?? ''), LETTERS[q.answer], q.why, q.rule ?? '']);
+    const rows = quiz.questions.map((q) => [q.n, domainIn(quiz.lang, q.area).name, q.prompt, ...Array.from({ length: width }, (_, i) => q.options[i] ?? ''), LETTERS[q.answer], q.why, q.rule ?? '']);
     return [header, ...rows].map((r) => r.map(cell).join(',')).join('\n') + '\n';
 }
 
 const STYLE = `
 :root { color-scheme: dark; --bg: #0B0D10; --card: #13161B; --border: #262C36; --strong: #343B47; --ink: #E9ECF1; --muted: #A7B0BE; --accent: #2DD4BF; --amber: #FFB454; }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", sans-serif; }
 main { max-width: 760px; margin: 0 auto; padding: 40px 20px 80px; }
-h1 { font-size: clamp(28px, 5vw, 40px); line-height: 1.1; letter-spacing: -.02em; margin: 0 0 12px; }
+h1 { font-size: clamp(28px, 5vw, 40px); line-height: 1.15; letter-spacing: -.02em; margin: 0 0 12px; }
 .kicker { margin: 0 0 12px; font: 13px ui-monospace, Menlo, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
 .lede, .fine { color: var(--muted); margin: 0 0 24px; }
 .fine { font-size: 14px; margin-top: 32px; }
@@ -205,20 +205,22 @@ button.plain { background: transparent; color: var(--ink); border: 1px solid var
 @media print { body { background: #fff; color: #000; } fieldset { background: #fff; border-color: #999; break-inside: avoid; } .bar, .fine { display: none; } .kicker { color: #000; } .lede, .why { color: #333; } }
 `;
 
-// Runs in the quiz file itself. It reads the questions from the page, builds
-// the form with text nodes only, and keeps the answers in the page: nothing is
-// stored or sent.
+// Runs in the quiz file itself. It reads the questions and the wording from
+// the page, builds the form with text nodes only, and keeps the answers in the
+// page: nothing is stored or sent.
 const SCRIPT = `
 (function () {
     var quiz = JSON.parse(document.getElementById('quiz-data').textContent);
+    var L = quiz.labels;
     var form = document.getElementById('quiz');
     var list = document.getElementById('questions');
     var score = document.getElementById('score');
     function el(tag, text, cls) { var e = document.createElement(tag); if (text) e.textContent = text; if (cls) e.className = cls; return e; }
+    function fill(template, values) { return template.replace(/\\{(\\w+)\\}/g, function (m, k) { return values[k]; }); }
     quiz.questions.forEach(function (q) {
         var set = el('fieldset');
         var legend = el('legend');
-        legend.appendChild(el('span', 'Question ' + q.n + ' of ' + quiz.total));
+        legend.appendChild(el('span', fill(L.question, { n: q.n, total: quiz.total })));
         legend.appendChild(document.createTextNode(q.prompt));
         set.appendChild(legend);
         q.options.forEach(function (option, i) {
@@ -251,20 +253,20 @@ const SCRIPT = `
             var labels = set.querySelectorAll('label');
             clearMarks(set);
             for (var i = 0; i < labels.length; i++) labels[i].className = i === q.answer ? 'right' : '';
-            labels[q.answer].appendChild(el('em', 'Correct answer', 'mark'));
+            labels[q.answer].appendChild(el('em', L.markRight, 'mark'));
             if (!picked) blank++;
             else if (Number(picked.value) === q.answer) right++;
             else {
                 picked.parentNode.className = 'wrong';
-                picked.parentNode.appendChild(el('em', 'Your answer', 'mark'));
+                picked.parentNode.appendChild(el('em', L.markYours, 'mark'));
             }
             var why = set.querySelector('.why');
             why.textContent = '';
-            why.appendChild(el('strong', picked && Number(picked.value) === q.answer ? 'Correct. ' : 'The answer is ' + 'ABCDEFGH'.charAt(q.answer) + '. '));
+            why.appendChild(el('strong', picked && Number(picked.value) === q.answer ? L.correct : fill(L.answerIs, { letter: 'ABCDEFGH'.charAt(q.answer) })));
             why.appendChild(document.createTextNode(q.why));
             why.hidden = false;
         });
-        score.textContent = 'You got ' + right + ' of ' + quiz.total + ' right' + (blank ? ', with ' + blank + ' not answered.' : '.');
+        score.textContent = fill(blank ? L.scoreBlank : L.score, { right: right, total: quiz.total, blank: blank });
         score.focus();
     });
     document.getElementById('again').addEventListener('click', function () {
@@ -282,35 +284,38 @@ const SCRIPT = `
 
 const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+/** Fills {name} slots in a label. Shared with the quiz page. */
+export const fillLabel = (template, values) => template.replace(/\{(\w+)\}/g, (m, k) => values[k]);
+
 /** One HTML file with no outside resources. It works from a shared drive or an email attachment. */
 export function quizHtml(quiz) {
-    const data = JSON.stringify({ total: quiz.total, questions: quiz.questions.map(({ n, prompt, options, answer, why }) => ({ n, prompt, options, answer, why })) }).replace(/</g, '\\u003c');
-    const title = `${quiz.title}${quiz.org ? ` (${quiz.org})` : ''}`;
+    const L = quiz.labels;
+    const data = JSON.stringify({ total: quiz.total, labels: L, questions: quiz.questions.map(({ n, prompt, options, answer, why }) => ({ n, prompt, options, answer, why })) }).replace(/</g, '\\u003c');
     return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${quiz.lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="generator" content="Komainu ${VERSION}">
-<title>${escapeHtml(title)}</title>
+<title>${escapeHtml(heading(quiz))}</title>
 <style>${STYLE}</style>
 </head>
 <body>
 <main>
-<p class="kicker">Training quiz · ${quiz.total} questions</p>
-<h1>${escapeHtml(title)}</h1>
-<p class="lede">These questions come from the AI guardrails in force. Choose one answer for each, then check your answers to see the reason behind every one.</p>
+<p class="kicker">${escapeHtml(fillLabel(L.kicker, { total: quiz.total }))}</p>
+<h1>${escapeHtml(heading(quiz))}</h1>
+<p class="lede">${escapeHtml(L.lede)}</p>
 <form id="quiz" novalidate>
 <div id="questions"></div>
 <div class="bar">
-<button type="submit" id="check">Check my answers</button>
-<button type="button" class="plain" id="again">Start again</button>
+<button type="submit" id="check">${escapeHtml(L.check)}</button>
+<button type="button" class="plain" id="again">${escapeHtml(L.again)}</button>
 <span id="score" role="status" tabindex="-1"></span>
 </div>
 </form>
-<p class="fine">Your answers stay in this page. Nothing is recorded or sent. Questions about a rule go to ${escapeHtml(quiz.contact)}.</p>
+<p class="fine">${escapeHtml(fillLabel(L.fine, { contact: quiz.contact }))}</p>
 </main>
 <script type="application/json" id="quiz-data">${data}</script>
 <script>${SCRIPT}</script>

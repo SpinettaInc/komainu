@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Komainu: 組織のための AI ガードレールを作る</title>
+<meta name="description" content="Komainu は、社内ポリシーをすべてのチームのための AI ガードレールに変える、何も保存しない静的なビルダーです。ルールを選び、コマンドを 1 つコピーして、自分の端末で実行します。">
+<meta property="og:title" content="Komainu: 組織のための AI ガードレールを作る">
+<meta property="og:description" content="社内ポリシーを、すべての AI アシスタントが読み込むルールに変え、可能なものはローカルで強制します。何も保存せず、何も送信しません。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Komainu">
+<meta name="author" content="Spinetta Inc.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0B0D10">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232DD4BF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='24' height='24' rx='4' fill='%230B0D10' stroke='none'/%3E%3Cpath d='M12 3l8 3v6c0 4.500-3.500 7.500-8 9-4.500-1.500-8-4.500-8-9V6zM12 3v18M8 10.500v3M16 12h.01'/%3E%3C/svg%3E">
+<link rel="preload" href="../fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="alternate" hreflang="en" href="../index.html">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">本文へ移動</a>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Komainu ホーム"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.500-3.500 7.500-8 9-4.500-1.500-8-4.500-8-9V6z"/><path d="M12 3v18"/><path d="M8 10.500v3"/><path d="M16 12h.01"/></svg>komainu</a>
+    <nav aria-label="メイン">
+      <a href="#why">なぜ必要か</a>
+      <a href="#how">仕組み</a>
+      <a href="#features">機能</a>
+      <a href="templates.html">テンプレート</a>
+      <a href="#use">クイックスタート</a>
+      <a href="#boundary">データの流れ</a>
+      <a href="../index.html" lang="en" hreflang="en">English</a>
+      <a class="gh" href="builder.html"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>ビルダー</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<div class="wrap hero" id="top">
+  <div class="hero-copy">
+    <p class="kicker">AI ガードレールビルダー · オープンソース · v0.1.0</p>
+    <h1>AI ポリシーを、すべてのアシスタントが従うガードレールに</h1>
+    <p class="lede"><strong>Komainu は、自社のポリシーをもとに、組織全体の AI ガードレールを作ります。</strong>ブラウザーでルールを選び、コマンドを 1 つコピーして、自分の端末で実行します。入力した内容は保存も送信もされません。</p>
+    <div class="install">
+      <span class="prompt" aria-hidden="true">$</span>
+      <code id="install-cmd" data-base>curl -fsSLo komainu.mjs {{BASE}}/komainu.mjs &amp;&amp; node komainu.mjs init</code>
+      <button class="copy" type="button" data-copy="#install-cmd">コピー</button>
+    </div>
+    <div class="cta">
+      <a class="btn primary" href="builder.html">ビルダーを開く</a>
+      <a class="btn text" href="#use">ローカルで実行する</a>
+    </div>
+  </div>
+
+  <div class="demo" id="demo" role="group" aria-label="1 つのポリシー条項が Komainu を通る流れ">
+    <div class="demo-bar">
+      <span>1 つのポリシー条項が Komainu を通る流れ · 厳格さ: 標準</span>
+      <div class="seg" role="group" aria-label="ルールが守られる方法">
+        <button type="button" data-mode="enforced" aria-pressed="true">強制</button>
+        <button type="button" data-mode="instructed" aria-pressed="false">指示</button>
+        <button type="button" data-mode="attested" aria-pressed="false">宣誓</button>
+      </div>
+    </div>
+    <div class="flow" aria-live="polite">
+      <div class="pane"><div class="pane-top"><span>1 · 自社のポリシー</span><span class="where">自社の文書</span></div><p data-pane="0"></p></div>
+      <div class="pane"><div class="pane-top"><span>2 · 選んだルール</span><span class="where">このブラウザータブ</span></div><p data-pane="1"></p></div>
+      <div class="pane"><div class="pane-top"><span>3 · 導入</span><span class="where">自分の端末</span></div><p data-pane="2"></p></div>
+      <div class="pane remote"><div class="pane-top"><span>4 · セッション中</span><span class="where">ホスト型アシスタント</span></div><p data-pane="3"></p></div>
+    </div>
+    <p class="demo-note" id="demo-note"
+      data-enforced="強制ルールは、モデルに届く前に、ローカルのフックまたは権限ルールが確認します。既定の設定では、35 件のうち 6 件が強制ルールです。"
+      data-instructed="指示ルールは、セッションの開始時にアシスタントへ読み込まれます。アシスタントは従いますが、従ったことを確認する仕組みはありません。"
+      data-attested="宣誓ルールは組織のプロセスです。生成されるポリシーには、確認する担当者の記入欄とともに 1 件ずつ記載されます。"></p>
+  </div>
+</div>
+
+<section class="alt" id="why">
+  <div class="wrap">
+    <div class="head">
+      <p class="kicker">なぜ必要か</p>
+      <h2>文書のポリシーを日々の業務に届ける方法</h2>
+      <p class="sub">文書の中にあるだけの AI ポリシーは、アシスタントの動作を変えません。Komainu はポリシーをアシスタントが読み込むルールに変え、確認できるものはローカルで確認します。</p>
+    </div>
+    <div class="steps">
+      <div class="step"><h3>ローカルで動く</h3><p>ビルダーはブラウザーのタブで、インストーラーは自分の端末で動きます。Komainu 自身のサービスはありません。</p></div>
+      <div class="step"><h3>何も保存しない</h3><p>サイトは静的ファイルです。データベースも、アカウントも、フォームの送信先もなく、Cookie もブラウザーのストレージも使いません。</p></div>
+      <div class="step"><h3>すべてのルールに区分を付ける</h3><p>各ルールには「強制」「指示」「宣誓」のいずれかが付くため、指示が技術的な統制と取り違えられることはありません。</p></div>
+      <div class="step"><h3>制限を明記する</h3><p>ほとんどのルールは、アシスタントが指示に従うことを前提にしています。Komainu が行わないことは<a href="#limits">制限事項</a>にまとめています。</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <div class="head">
+      <p class="kicker">仕組み</p>
+      <h2>ポリシーからガードレールの導入まで 4 ステップ</h2>
+      <p class="sub"><a href="builder.html">ビルダー</a>、CLI、MCP サーバー、エージェントスキルは、すべて同じルールカタログを使い、同じファイルを書き出します。</p>
+    </div>
+    <div class="steps">
+      <div class="step"><span class="n">01</span><h3>選ぶ</h3><p>テンプレートから始めて、AI を使うチームを選びます。ルールのオンとオフを切り替え、厳格さを決めます。</p><div class="out">18 領域 → <b>185 ルール</b></div></div>
+      <div class="step"><span class="n">02</span><h3>独自のルールを加える</h3><p>ポリシーテンプレートをダウンロードし、表計算ソフトで編集してインポートします。または、エージェントスキルにポリシー文書を条項ごとに対応付けさせます。</p><div class="out">rules.csv → <b>独自のルール</b></div></div>
+      <div class="step"><span class="n">03</span><h3>コマンドを 1 つコピーする</h3><p>選んだ内容はコマンドそのものに含まれています。オフラインインストーラーと、コーディングエージェント用のプロンプトも用意されます。</p><div class="out">komainu.mjs apply <b>eyJ2Ijox…</b></div></div>
+      <div class="step"><span class="n">04</span><h3>ローカルに導入する</h3><p>コマンドは、各アシスタントが読むルールファイル、ローカルの強制フック、人が読むためのポリシー文書を書き出します。</p><div class="out">AGENTS.md + <b>komainu-guard.mjs</b></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <div class="head">
+      <p class="kicker">機能</p>
+      <h2>Komainu に含まれるもの</h2>
+      <p class="sub">Komainu は、エンジニアリングチーム、その他の部門、経営層、IT 管理者、そして監査を行う人までを対象にしています。</p>
+    </div>
+    <div class="grid">
+      <div class="card"><span class="tag">builder.html</span><h3>全幅のエディター</h3><p>左に領域、中央に編集中のルール、右にコマンドと生成されるファイル。編集するたびに 3 つすべてが更新されます。</p></div>
+      <div class="card"><span class="tag">komainu import</span><h3>独自のルール</h3><p>CSV または JSON からルールをインポートできます。一般的な列名、区切り文字、領域名を認識し、追加する前にプレビューを表示します。</p></div>
+      <div class="card"><span class="tag">komainu-guard.mjs</span><h3>ローカルの強制フック</h3><p>認証情報、カード番号、機密名称、秘密ファイルの読み取り、危険なコマンドを、端末から出る前にブロックする Claude Code のフックです。</p></div>
+      <div class="card"><span class="tag">AGENTS.md</span><h3>1 つの定義をすべてのアシスタントへ</h3><p>同じルールを Claude Code、Cursor、GitHub Copilot、Gemini CLI、Windsurf 向けに書き出します。既存のファイルにはマージします。</p></div>
+      <div class="card"><span class="tag">assistant-instructions/</span><h3>部門別パック</h3><p>リポジトリを開くことのない、チャットアシスタントを使うチームのために、部門ごとに貼り付け用のブロックを用意します: 人事、営業、マーケティング、サポート、法務、財務。</p></div>
+      <div class="card"><span class="tag">acceptable-use-policy.md</span><h3>人が読むためのポリシー</h3><p>同じ設定から生成される、人が読めるポリシーです。フレームワークへの参照と、人が確認する必要のあるルールのチェックリストが付きます。</p></div>
+      <div class="card"><span class="tag">komainu status</span><h3>ずれの検出</h3><p>導入済みのファイルを <code>komainu.json</code> と比較し、違いがあればエラーで終了します。CI での利用を想定しています。</p></div>
+      <div class="card"><span class="tag">komainu check</span><h3>漏えいスキャン</h3><p>ファイル、ステージ済みの変更、標準入力を対象に、認証情報、個人データ、機密名称を検出します。<code>komainu redact</code> はそれらをプレースホルダーに置き換えます。</p></div>
+      <div class="card"><span class="tag">komainu mcp</span><h3>MCP サーバー</h3><p>どの MCP クライアントでも使える、読み取り専用の 6 つのツールです: 有効なルールの一覧、テキストの検査と伏せ字化、分類されたデータの送り先の判断、設定のプレビュー。</p></div>
+      <div class="card"><span class="tag">skills/komainu-guardrails</span><h3>エージェントスキル</h3><p>コーディングエージェントに、ポリシー文書をローカルで読み、各条項をルールに対応付け、導入の前に不足を報告する手順を教えます。</p></div>
+      <div class="card"><span class="tag">komainu template</span><h3>ポリシーテンプレート</h3><p>役割または領域ごとのルールを CSV ファイルでダウンロードし、表計算ソフトで編集してインポートできます。役割テンプレートが 11 種類と、領域ごとのテンプレートがあります。<a href="templates.html">テンプレートを見る</a>。</p></div>
+      <div class="card"><span class="tag">komainu quiz</span><h3>研修クイズ</h3><p>選んだルールから作るクイズを、チームに共有できる 1 つの HTML ファイルとして書き出します。クイズを直接開くリンクを送ることもできます。回答すると各問の理由が表示され、何も記録されません。</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="covers">
+  <div class="wrap">
+    <div class="two">
+      <div>
+        <p class="kicker">対象範囲</p>
+        <h2>対象とする範囲</h2>
+        <p class="sub">18 領域に 185 件のルール。共通ルールは常に適用され、その他の領域は組織ごとにオンにします。</p>
+        <ul class="chips">
+          <li>共通</li><li>コーディング</li><li>セキュリティ</li><li>データとプライバシー</li><li>エージェント</li><li>コミュニケーション</li><li>人事</li><li>営業</li><li>マーケティング</li><li>サポート</li><li>法務</li><li>財務</li><li>ガバナンス</li><li>AI プロダクトチーム</li><li>IT 統制</li><li>公共サービス</li><li>医療・介護</li><li>教育</li>
+        </ul>
+        <ul class="chips soft">
+          <li>NIST AI RMF</li><li>ISO/IEC 42001</li><li>EU AI ACT</li><li>GDPR</li><li>OWASP LLM</li><li>OWASP AGENTIC</li>
+        </ul>
+        <p class="fine">フレームワークへの参照はレビュー担当者のための手がかりであり、準拠を表明するものではありません。生成されるポリシーは出発点であり、法的助言ではありません。</p>
+      </div>
+      <div>
+        <p class="kicker">厳格さ</p>
+        <h2>厳格さのレベル</h2>
+        <p class="sub">レベルによって、既定でオンになるルールとフックの動作が決まります。</p>
+        <div class="profiles">
+          <div class="profile"><header><code>strict</code><span>185 ルール</span></header><div class="bar"><i class="w100"></i></div><p>すべてのルールがオン。フックはブロックします。規制業種や高リスク環境向け。</p></div>
+          <div class="profile"><header><code>balanced</code><span>150 ルール · 既定</span></header><div class="bar"><i class="w70"></i></div><p>必須事項と良い慣行。フックは明確な違反をブロックします。</p></div>
+          <div class="profile"><header><code>advisory</code><span>70 ルール</span></header><div class="bar"><i class="w40"></i></div><p>必須事項のみ。フックは確認を求め、ブロックはしません。</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="use">
+  <div class="wrap">
+    <div class="split">
+      <div class="head">
+        <p class="kicker">クイックスタート</p>
+        <h2>ブラウザー、ターミナル、エージェントから使う</h2>
+        <p class="sub">5 つの方法はすべて同じカタログを使い、同じファイルを書き出します。CLI は依存関係のない 1 つの JavaScript ファイルで、ネットワークリクエストは行いません。</p>
+        <div class="links" data-online>
+        <a class="link" href="../komainu.mjs">komainu.mjs を読む <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></a>
+        <a class="link" href="../SHA256SUMS">チェックサム <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></a>
+        <a class="link" href="../komainu-standalone-ja.html" download>オフラインビルダー <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></a>
+        </div>
+      </div>
+      <div class="code">
+        <div class="tabs" role="tablist" aria-label="Komainu の使い方">
+          <button type="button" role="tab" aria-selected="true" aria-controls="p-web" id="t-web">builder.sh</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="p-cli" id="t-cli" tabindex="-1">cli.sh</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="p-import" id="t-import" tabindex="-1">rules.csv</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="p-mcp" id="t-mcp" tabindex="-1">mcp.sh</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="p-skill" id="t-skill" tabindex="-1">agent-skill.sh</button>
+        </div>
+    <div class="panel" role="tabpanel" id="p-web" aria-labelledby="t-web">
+      <button class="copy" type="button" data-copy="#p-web pre">コピー</button>
+<pre data-base><span class="c"># 1. ブラウザーで設定を作る: {{BASE}}/ja/builder.html</span>
+<span class="c"># 2. 表示されたコマンドをコピーして、リポジトリで実行する</span>
+curl -fsSLo komainu.mjs {{BASE}}/komainu.mjs
+node komainu.mjs apply <span class="s">eyJ2IjoxLCJkb21haW5zIjpbImNvcmUiLCJjb2RpbmciXX0</span>
+
+node komainu.mjs apply --dry-run     <span class="c"># 書き込まずに確認する</span>
+node komainu.mjs status              <span class="c"># 導入済みのファイルは今も一致しているか</span></pre>
+    </div>
+    <div class="panel" role="tabpanel" id="p-cli" aria-labelledby="t-cli" hidden>
+      <button class="copy" type="button" data-copy="#p-cli pre">コピー</button>
+<pre data-base><span class="c"># 1 ファイル、依存関係なし、Node.js 18 以上が必要</span>
+curl -fsSLo komainu.mjs {{BASE}}/komainu.mjs
+
+node komainu.mjs init                <span class="c"># ウィザード: いくつかの質問に答える</span>
+node komainu.mjs apply               <span class="c"># ./komainu.json からファイルを書き出す</span>
+node komainu.mjs status              <span class="c"># ファイルがずれていたら exit 1 (CI 向け)</span>
+node komainu.mjs check --staged      <span class="c"># ステージ済みファイルを検査 (pre-commit 向け)</span>
+node komainu.mjs quiz &gt; quiz.html     <span class="c"># ルールの研修クイズ</span>
+echo <span class="s">"key=AKIA…"</span> | node komainu.mjs redact
+<span class="c"># key=[REDACTED_SECRET]</span></pre>
+    </div>
+    <div class="panel" role="tabpanel" id="p-import" aria-labelledby="t-import" hidden>
+      <button class="copy" type="button" data-copy="#p-import pre">コピー</button>
+<pre><span class="c"># テンプレートから始める: 役割または領域のルールを CSV で</span>
+node komainu.mjs template --list
+node komainu.mjs template governance &gt; policy.csv   <span class="c"># 編集してからインポートする</span>
+
+<span class="c"># または独自のファイルを書く: 必須なのは "rule" 列だけ</span>
+rule,level,area,source
+<span class="s">"Get approval from the People team before using AI on performance data."</span>,must,HR,AI Policy 5.2
+<span class="s">"Never paste customer contracts into a tool Legal has not approved."</span>,must,Legal,Security Policy 4.1
+<span class="s">"Prefer the internal style guide over the assistant's default tone."</span>,should,Marketing,Brand Guide 2
+
+<span class="c"># その後</span>
+node komainu.mjs import rules.csv --dry-run
+<span class="c"># Read 3 rule(s) from rules.csv (CSV).  1 Human resources  1 Legal &amp; compliance  1 Marketing</span>
+node komainu.mjs import rules.csv &amp;&amp; node komainu.mjs apply</pre>
+    </div>
+    <div class="panel" role="tabpanel" id="p-mcp" aria-labelledby="t-mcp" hidden>
+      <button class="copy" type="button" data-copy="#p-mcp pre">コピー</button>
+<pre><span class="c"># Claude Code</span>
+claude mcp add komainu -- node <span class="s">/absolute/path/to/komainu.mjs</span> mcp
+
+<span class="c"># 任意の MCP クライアント (.mcp.json)</span>
+{ <span class="s">"mcpServers"</span>: { <span class="s">"komainu"</span>: { <span class="s">"command"</span>: <span class="s">"node"</span>, <span class="s">"args"</span>: [<span class="s">"/absolute/path/to/komainu.mjs"</span>, <span class="s">"mcp"</span>] } } }
+
+<span class="c"># ツール: guardrails_list  guardrails_check  guardrails_redact</span>
+<span class="c">#        guardrails_route guardrails_catalog guardrails_build</span>
+<span class="c"># 読み取り専用、stdio、MCP 2026-07-28 と以前のハンドシェイクに対応</span></pre>
+    </div>
+    <div class="panel" role="tabpanel" id="p-skill" aria-labelledby="t-skill" hidden>
+      <button class="copy" type="button" data-copy="#p-skill pre">コピー</button>
+<pre data-base><span class="c"># コーディングエージェントにスキルを導入する</span>
+curl -fsSLo komainu.mjs {{BASE}}/komainu.mjs
+node komainu.mjs skill install            <span class="c"># .claude/skills/komainu-guardrails</span>
+node komainu.mjs skill install --agents   <span class="c"># 他のエージェント向けは .agents/skills/</span>
+
+<span class="c"># Node.js を使わない場合</span>
+mkdir -p .claude/skills
+curl -fsSL {{BASE}}/skill/komainu-guardrails.tar.gz | tar -xz -C .claude/skills
+
+<span class="c"># その後、エージェントに依頼する:</span>
+<span class="c"># 「社内ポリシーをもとに、当社の AI ガードレールを作成してください。」</span></pre>
+    </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="boundary">
+  <div class="wrap">
+    <div class="head">
+      <p class="kicker">データの流れ</p>
+      <h2>端末に残るものと、送信されるもの</h2>
+    </div>
+    <div class="bound">
+      <div>
+        <h3>端末に残るもの</h3>
+        <ul>
+          <li><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>ビルダーに入力したすべての内容。このページはネットワークリクエストを送れません</span></li>
+          <li><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>ポリシー文書と、インポートするルールファイル</span></li>
+          <li><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>機密名称。どの指示ファイルにも書き込まれません</span></li>
+          <li><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>フックがブロックするもの: 認証情報、カード番号、警告対象のコマンド</span></li>
+        </ul>
+      </div>
+      <div class="remote">
+        <h3>AI プロバイダーに送信されるもの</h3>
+        <ul>
+          <li><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg><span>指示ファイルにあるルールの文言 (アシスタントが読み込むとき)</span></li>
+          <li><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg><span>組織の名称と担当の役割 (入力した場合)</span></li>
+          <li><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg><span>Komainu 自身は、プロバイダーにも他の誰にも、何も送信しません</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="quality">
+  <div class="wrap">
+    <div class="head">
+      <p class="kicker">数字で見る</p>
+      <h2>カタログの内容</h2>
+      <p class="sub">数値はこのビルドのカタログから取得しています。ルールの文言は Komainu 独自のもので、規制当局や標準化団体の審査は受けていません。</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>185</b><span>件のルール。それぞれ「必須」または「推奨」</span></div>
+      <div class="stat"><b>18</b><span>領域。コーディングからガバナンスまで</span></div>
+      <div class="stat"><b>10</b><span>種類の導入先。アシスタントと文書</span></div>
+      <div class="stat"><b>0</b><span>このページに許可されたネットワークリクエストの数</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="limits">
+  <div class="wrap">
+    <div class="head">
+      <p class="kicker">制限事項</p>
+      <h2>既知の制限</h2>
+      <p class="sub">Komainu に頼る前にお読みください。</p>
+    </div>
+    <ul class="limits">
+      <li>ほとんどのルールは「指示」です。ルールを伝えられたアシスタントは通常それに従いますが、従ったことを確認する仕組みはありません。</li>
+      <li>強制フックが動作するのは Claude Code だけです。他のアシスタントはルールを指示として受け取ります。</li>
+      <li>検出はパターンに基づきます。一般的な認証情報、カード、銀行口座の形式は検出しますが、それ以外は見逃します。プロンプト内の氏名やその他の個人データには、テキストが端末を出る前にトークンへ置き換える当社の Python ライブラリ <a href="https://veil.spinetta.tech/">Veil</a> を使ってください。</li>
+      <li>Komainu は、提供する AI プロダクトのための実行時フィルターではありません。AI アプリケーションを開発する場合は、実行時フィルターと組み合わせてください。個人データ向けには当社の <a href="https://veil.spinetta.tech/">Veil</a> があります。</li>
+      <li>生成されるポリシーは出発点であり、法的助言ではありません。法務、セキュリティ、プライバシーの担当者によるレビューを受けてください。</li>
+      <li>機密名称は <code>komainu.json</code> とフックに保存されます。見せてはならない人とリポジトリを共有している場合は、そこに名称を登録しないでください。</li>
+    </ul>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <h2>自社のポリシーからガードレールを作る</h2>
+    <p class="sub">Komainu はポリシーを無視しにくくしますが、破ることを不可能にするわけではありません。頼る前に<a href="#limits">制限事項</a>をお読みください。</p>
+    <div class="cta">
+      <div class="install">
+        <span class="prompt" aria-hidden="true">$</span>
+        <code id="install-cmd-2" data-base>curl -fsSLo komainu.mjs {{BASE}}/komainu.mjs &amp;&amp; node komainu.mjs init</code>
+        <button class="copy" type="button" data-copy="#install-cmd-2">コピー</button>
+      </div>
+      <a class="btn primary" href="builder.html">ビルダーを開く</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Komainu は <a href="https://spinetta.tech/">Spinetta Inc. <span lang="ja">合同会社</span></a>のプロダクトです · オープンソース · GPLv3 · このページは他のサイトへリクエストを送りません</span>
+    <nav aria-label="フッター">
+      <a href="builder.html">ビルダー</a>
+      <a href="templates.html">テンプレート</a>
+      <a href="#use">クイックスタート</a>
+      <a href="#limits">制限事項</a>
+      <a href="https://veil.spinetta.tech/">Veil</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="../assets/site.js" defer></script>
+</body>
+</html>

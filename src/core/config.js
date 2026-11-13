@@ -1,4 +1,5 @@
 import { DOMAINS, RULES, STRICTNESS, TARGETS, REDACT_CLASSES, ATTESTED } from './catalog.js';
+import { langOf, ruleIn, domainIn, text } from './i18n.js';
 
 export const MAX_CUSTOM = 300;
 
@@ -18,7 +19,8 @@ export const DEFAULT_CONFIG = Object.freeze({
     redact: ['secrets', 'cc', 'iban', 'ssn'],
     terms: [],
     targets: ['agents', 'claude', 'hooks', 'policy'],
-    cite: true
+    cite: true,
+    lang: 'en'
 });
 
 // Control characters are stripped from every text field on purpose.
@@ -53,7 +55,8 @@ export function normalize(input) {
         redact: list(c.redact, REDACT_CLASSES.map((r) => r.id)),
         terms: list(c.terms).map((t) => str(t, 60)).filter((t) => t.length >= 2).slice(0, 200),
         targets: list(c.targets, TARGETS.map((t) => t.id)),
-        cite: c.cite !== false
+        cite: c.cite !== false,
+        lang: langOf(c.lang)
     };
     if (!out.levels.includes(out.hostedMax)) out.hostedMax = out.levels[Math.min(1, out.levels.length - 1)];
     out.on = out.on.filter((id) => !out.off.includes(id));
@@ -68,15 +71,16 @@ export const isDefaultOn = (rule, cfg) => cfg.domains.includes(rule.d) && rule.t
 export const isActive = (rule, cfg) =>
     cfg.domains.includes(rule.d) && !cfg.off.includes(rule.id) && (rule.tier <= tierOf(cfg) || cfg.on.includes(rule.id));
 
-export function renderText(text, cfg) {
+export function renderText(body, cfg) {
+    const T = text(cfg.lang);
     const vars = {
-        tools: cfg.tools || "the tools on the organization's approved list",
-        contact: cfg.contact || 'the AI governance owner',
-        levels: cfg.levels.join(', '),
+        tools: cfg.tools || T.vars.tools,
+        contact: cfg.contact || T.vars.contact,
+        levels: cfg.levels.join(T.listSep),
         hostedMax: cfg.hostedMax,
-        local: cfg.local || 'an approved local or private endpoint'
+        local: cfg.local || T.vars.local
     };
-    return text.replace(/\{(\w+)\}/g, (m, k) => vars[k] ?? m);
+    return body.replace(/\{(\w+)\}/g, (m, k) => vars[k] ?? m);
 }
 
 /** How a rule is upheld, given the chosen targets. */
@@ -95,10 +99,13 @@ export function activeRules(cfg) {
     const groups = [];
     for (const d of DOMAINS) {
         if (!cfg.domains.includes(d.id)) continue;
-        const rules = RULES.filter((r) => r.d === d.id && isActive(r, cfg)).map((r) => ({ ...r, x: renderText(r.x, cfg), cov: coverageOf(r, cfg) }));
+        const rules = RULES.filter((r) => r.d === d.id && isActive(r, cfg)).map((r) => {
+            const local = ruleIn(cfg.lang, r);
+            return { ...local, x: renderText(local.x, cfg), cov: coverageOf(r, cfg) };
+        });
         cfg.custom.filter((c) => c.d === d.id).forEach((c, i) => rules.push({ id: `custom.${d.id}.${i + 1}`, d: d.id, t: '', x: renderText(c.x, cfg), l: c.l, tier: 0, refs: c.src ? [c.src] : [], cov: 'instructed', custom: true }));
         rules.sort((a, b) => (a.l === b.l ? 0 : a.l === 'must' ? -1 : 1));
-        if (rules.length) groups.push({ domain: d, rules });
+        if (rules.length) groups.push({ domain: domainIn(cfg.lang, d.id), rules });
     }
     return groups;
 }
@@ -141,3 +148,6 @@ export function decode(input) {
     if (!parsed || typeof parsed !== 'object' || parsed.v !== 1) throw new Error('Unsupported configuration version');
     return normalize(parsed);
 }
+
+/** The contact to name in generated text: the configured one, or the default wording. */
+export const contactOf = (cfg) => cfg.contact || text(cfg.lang).vars.contact;

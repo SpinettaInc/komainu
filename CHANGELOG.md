@@ -10,6 +10,7 @@ First release.
 - Builder: a full-width editor with the areas on the left, the rules being edited in the middle and the output on the right.
 - Templates page: every policy template with its rules, a CSV download and a quiz.
 - Quiz page: opens a training quiz from a link.
+- Every page is also in Japanese, under `/ja/`, with a link between the two languages.
 - The site is static. It has no server and no database, it stores nothing, and its content security policy stops the pages from making network requests.
 
 ### Rules
@@ -25,6 +26,7 @@ First release.
 - An AI acceptable-use policy for people, and one instruction pack per department for chat assistants.
 - One command, an offline installer for bash and PowerShell, a prompt for a coding agent, a share link, and a zip of every generated file.
 - A training quiz as a self-contained HTML file, as Markdown, as CSV or as a link.
+- Everything above can be written in English or in Japanese. The rule catalog, the templates and the quiz questions are translated in full. The language is a setting in `komainu.json`, chosen in the builder or with `--lang`.
 
 ### Tools
 
@@ -35,6 +37,7 @@ First release.
 
 ### Quality
 
-- 958 tests, with 100% line coverage of the shared core.
+- More than 1,000 tests, with 100% line coverage of the shared core.
+- Tests hold the Japanese catalog, interface wording and pages to the English ones: every rule, scenario and interface string has a translation with the same placeholders.
 - ESLint, Stylelint, markdownlint, html-validate and a prose check.
 - axe-core runs on every page, every builder view and the quiz file.

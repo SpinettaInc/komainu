@@ -52,7 +52,8 @@ export function loadPage(name, { hash = '' } = {}) {
     window.URL.createObjectURL = () => 'blob:test';
     window.URL.revokeObjectURL = () => {};
     window.HTMLAnchorElement.prototype.click = function click() { if (this.download) state.downloads.push(this.download); };
-    window.eval(read(script));
+    // A page under ja/ loads its script from the folder above.
+    window.eval(read(path.posix.join(path.posix.dirname(name), script)));
     const $ = (sel) => window.document.querySelector(sel);
     const $$ = (sel) => [...window.document.querySelectorAll(sel)];
     const fire = (el, type) => el.dispatchEvent(new window.Event(type, { bubbles: true }));

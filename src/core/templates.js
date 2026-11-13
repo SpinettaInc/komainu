@@ -3,14 +3,15 @@
 
 import { DOMAINS, PRESETS, RULES } from './catalog.js';
 import { normalize, isActive } from './config.js';
+import { domainIn, presetIn, ruleIn } from './i18n.js';
 
 export const TEMPLATE_COLUMNS = ['id', 'area', 'level', 'title', 'rule', 'source'];
 
-/** Every template on offer: one per persona, then one per area. */
-export function policyTemplates() {
+/** Every template on offer, named in the given language: one per persona, then one per area. */
+export function policyTemplates(lang = 'en') {
     return [
-        ...PRESETS.map((p) => ({ id: p.id, kind: 'persona', name: p.name, blurb: p.blurb })),
-        ...DOMAINS.map((d) => ({ id: `area-${d.id}`, kind: 'area', name: d.name, blurb: d.blurb }))
+        ...PRESETS.map((p) => ({ id: p.id, kind: 'persona', name: presetIn(lang, p.id).name, blurb: presetIn(lang, p.id).blurb })),
+        ...DOMAINS.map((d) => ({ id: `area-${d.id}`, kind: 'area', name: domainIn(lang, d.id).name, blurb: domainIn(lang, d.id).blurb }))
     ];
 }
 
@@ -28,15 +29,22 @@ export function templateRules(id) {
 
 const cell = (v) => (/[",\n\r]/.test(v) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
 
-/** Rules as CSV. `source` is left empty for the organization's own policy clause. */
-export function rulesCsv(rules) {
-    const rows = rules.map((r) => [r.id, DOMAINS.find((d) => d.id === r.d).name, r.l, r.t, r.x, '']);
+/**
+ * Rules as CSV, written in the given language. The column names stay in
+ * English so the file imports the same way everywhere. `source` is left empty
+ * for the organization's own policy clause.
+ */
+export function rulesCsv(rules, lang = 'en') {
+    const rows = rules.map((r) => {
+        const local = ruleIn(lang, r);
+        return [r.id, domainIn(lang, r.d).name, r.l, local.t, local.x, ''];
+    });
     return [TEMPLATE_COLUMNS, ...rows].map((row) => row.map(cell).join(',')).join('\n') + '\n';
 }
 
-export function templateCsv(id) {
+export function templateCsv(id, lang = 'en') {
     const rules = templateRules(id);
-    return rules ? rulesCsv(rules) : null;
+    return rules ? rulesCsv(rules, lang) : null;
 }
 
 export const templateFileName = (id) => `komainu-policy-${id.replace(/^area-/, '')}.csv`;

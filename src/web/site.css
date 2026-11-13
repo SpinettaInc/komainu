@@ -260,3 +260,9 @@ footer span a { color: var(--ink); text-underline-offset: 3px; }
 .quiz button.btn.outline { background: transparent; color: var(--ink); border: 1px solid var(--border-strong); }
 #score { font-weight: 600; }
 @media print { header.nav, footer, .quiz .cta { display: none; } body { background: #fff; color: #000; } .quiz fieldset { background: #fff; border-color: #999; break-inside: avoid; } .quiz .why, .lede { color: #333; } }
+
+/* Japanese pages: system Japanese fonts after the Latin ones, no negative tracking, line breaks by phrase. */
+html[lang="ja"] { --sans: "Inter", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif; --display: "Space Grotesk", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif; line-break: strict; overflow-wrap: anywhere; }
+html[lang="ja"] body { line-height: 1.8; }
+html[lang="ja"] h1, html[lang="ja"] h2, html[lang="ja"] h3 { letter-spacing: 0; word-break: auto-phrase; line-height: 1.35; }
+html[lang="ja"] .kicker, html[lang="ja"] .btn.small { letter-spacing: .04em; }

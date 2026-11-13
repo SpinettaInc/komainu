@@ -16,6 +16,7 @@ import { detectorsFor, scanText } from '../core/detectors.js';
 import { catalogMarkdown } from '../core/docs.js';
 import { parseRules, applyImport } from '../core/import.js';
 import { policyTemplates, templateCsv } from '../core/templates.js';
+import { LANGS } from '../core/i18n.js';
 import { buildQuiz, quizLink, QUIZ_FORMATS } from '../core/quiz.js';
 import { createServer, serveStdio } from './mcp.js';
 
@@ -50,6 +51,8 @@ Usage: node komainu.mjs <command> [options]
   mcp                       Run the MCP server on stdio
 
 Options: --dir <path> (default: current directory)   --dry-run   --help   --version
+         --lang <en|ja>      Language of the generated files, templates and quizzes.
+                             With apply or init it is saved in komainu.json.
 `;
 
 const SELF = (() => { try { const p = fileURLToPath(import.meta.url); return fs.statSync(p).isFile() ? p : null; } catch { return null; } })();
@@ -59,7 +62,7 @@ function parseArgs(argv) {
     const pos = [];
     for (let i = 0; i < argv.length; i++) {
         const a = argv[i];
-        if (['--dir', '--area', '--format', '--count', '--seed', '--url', '-f'].includes(a)) flags[a === '-f' ? 'file' : a.slice(2)] = argv[++i];
+        if (['--dir', '--area', '--format', '--count', '--seed', '--url', '--lang', '-f'].includes(a)) flags[a === '-f' ? 'file' : a.slice(2)] = argv[++i];
         else if (a.startsWith('--')) flags[a.slice(2)] = true;
         else pos.push(a);
     }
@@ -69,14 +72,18 @@ function parseArgs(argv) {
 const die = (msg) => { process.stderr.write(`komainu: ${msg}\n`); process.exit(1); };
 const readIf = (p) => { try { return fs.readFileSync(p, 'utf8'); } catch { return null; } };
 
+// Set by --lang. It overrides the language a configuration was saved with.
+let langFlag;
+const inLang = (cfg) => (langFlag ? normalize({ ...cfg, lang: langFlag }) : cfg);
+
 function loadConfig(dir, source) {
     if (source) {
         const asFile = readIf(path.resolve(source));
-        return decode(asFile ?? source);
+        return inLang(decode(asFile ?? source));
     }
     const local = readIf(path.join(dir, 'komainu.json'));
     if (local === null) return null;
-    return decode(local);
+    return inLang(decode(local));
 }
 
 /** What applying `file` would produce on disk: { next, state } */
@@ -163,7 +170,7 @@ function importRules(dir, file, flags) {
     const text = readIf(path.resolve(file)) ?? readIf(path.resolve(dir, file)) ?? die(`cannot read ${file}`);
     const cfg = loadConfig(dir) || normalize({});
     const fallback = DOMAINS.some((d) => d.id === flags.area) ? flags.area : 'core';
-    const res = parseRules(text, { name: file, fallback, existing: cfg.custom });
+    const res = parseRules(text, { name: file, fallback, existing: cfg.custom, lang: cfg.lang });
     const byArea = {};
     for (const r of res.rules) byArea[r.d] = (byArea[r.d] || 0) + 1;
     console.log(`Read ${res.rules.length} rule(s) from ${path.basename(file)}${res.format ? ` (${res.format.toUpperCase()})` : ''}.`);
@@ -178,18 +185,18 @@ function importRules(dir, file, flags) {
 }
 
 function template(id, flags) {
-    const all = policyTemplates();
+    const all = policyTemplates(langFlag);
     if (flags.list || !id) {
         console.log('Policy templates. Save one with: komainu template <id> > policy.csv\n');
         for (const t of all) console.log(`  ${t.id.padEnd(20)} ${t.name}: ${t.blurb}`);
         return;
     }
-    const csv = templateCsv(id) ?? die(`unknown template "${id}". Run \`komainu template --list\`.`);
+    const csv = templateCsv(id, langFlag) ?? die(`unknown template "${id}". Run \`komainu template --list\`.`);
     process.stdout.write(csv);
 }
 
 function quiz(dir, source, flags) {
-    const cfg = loadConfig(dir, source) || normalize({});
+    const cfg = loadConfig(dir, source) || inLang(normalize({}));
     const format = QUIZ_FORMATS[flags.format || 'html'] ?? die('quiz format must be one of: html, md, csv');
     const count = Math.min(100, Math.max(1, parseInt(flags.count, 10) || 10));
     if (flags.area && !DOMAINS.some((d) => d.id === flags.area)) die(`unknown area "${flags.area}". Run \`komainu catalog\` to see the areas.`);
@@ -251,7 +258,7 @@ async function init(dir, flags) {
     cfg.targets = await multi('Where should the guardrails be installed?', TARGETS, base.targets);
     rl.close();
 
-    const final = normalize(cfg);
+    const final = inLang(normalize(cfg));
     console.log('');
     apply(dir, final, { dryRun: !!flags['dry-run'] });
 }
@@ -269,6 +276,10 @@ async function main() {
     const dir = path.resolve(flags.dir || '.');
     if (flags.version) return console.log(VERSION);
     if (!cmd || flags.help || cmd === 'help') return process.stdout.write(HELP);
+    if (flags.lang !== undefined) {
+        if (!LANGS.includes(flags.lang)) die(`--lang must be one of: ${LANGS.join(', ')}`);
+        langFlag = flags.lang;
+    }
 
     try {
         switch (cmd) {

@@ -5,5 +5,7 @@
   Permissions-Policy: geolocation=(), camera=(), microphone=(), interest-cohort=()
 /komainu-standalone.html
   ! Content-Security-Policy
+/komainu-standalone-ja.html
+  ! Content-Security-Policy
 /komainu.mjs
   Content-Type: text/javascript; charset=utf-8
