@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node scripts/build.mjs && node --test \"test/*.test.mjs\"",
-    "coverage": "node scripts/build.mjs && node --test --experimental-test-coverage --test-coverage-include=\"src/core/**\" --test-coverage-lines=90 --test-coverage-functions=90 \"test/*.test.mjs\"",
+    "test": "node scripts/build.mjs && node --test test/*.test.mjs",
+    "coverage": "node scripts/build.mjs && node --test --experimental-test-coverage --test-coverage-include=\"src/core/**\" --test-coverage-lines=90 --test-coverage-functions=90 test/*.test.mjs",
     "lint": "npm run lint:js && npm run lint:css && npm run lint:md && npm run lint:html && npm run lint:prose",
     "lint:js": "eslint .",
     "lint:css": "stylelint \"src/web/*.css\"",
