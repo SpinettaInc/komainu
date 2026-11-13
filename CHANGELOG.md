@@ -23,6 +23,7 @@ First release.
 
 - Rule files for AGENTS.md, Claude Code, Cursor, GitHub Copilot, Gemini CLI and Windsurf.
 - Claude Code permission rules and a local hook that blocks credentials, card numbers, IBANs, sensitive names, reads of secret files and dangerous commands.
+- Observe mode for the hook: it stops nothing and records what it would have stopped in a local file, without the content, so a team can check the counts with `komainu report` before turning blocking on.
 - An AI acceptable-use policy for people, and one instruction pack per department for chat assistants.
 - One command, an offline installer for bash and PowerShell, a prompt for a coding agent, a share link, and a zip of every generated file.
 - A training quiz as a self-contained HTML file, as Markdown, as CSV or as a link.
@@ -31,7 +32,7 @@ First release.
 ### Tools
 
 - `komainu.mjs`: one JavaScript file with no dependencies that is the CLI, the MCP server and the skill installer.
-- CLI commands: `init`, `apply`, `status`, `check`, `redact`, `template`, `import`, `quiz`, `export`, `catalog`, `skill install`, `mcp`.
+- CLI commands: `init`, `apply`, `status`, `report`, `check`, `redact`, `template`, `import`, `quiz`, `export`, `catalog`, `skill install`, `mcp`.
 - MCP server over stdio with six read-only tools. It speaks the 2026-07-28 revision and the earlier handshake.
 - The `komainu-guardrails` agent skill, which maps an organization's policy documents to rules and reports the gaps.
 

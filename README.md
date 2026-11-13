@@ -86,6 +86,20 @@ Every rule carries one of three labels, in the builder and in the generated poli
 
 With the default configuration, 6 of 35 rules are enforced.
 
+## Observe mode
+
+Blocking on the first day can stop work for reasons nobody has looked at yet. In observe mode the hook stops nothing. It appends one line per finding to `.komainu/observed.jsonl` on the machine, so a team can see what would be stopped before turning blocking on.
+
+```sh
+node komainu.mjs apply --observe     # the hook records and lets everything through
+node komainu.mjs report              # counts per rule or kind of data; --json for a script
+node komainu.mjs apply --enforce     # turn blocking on
+```
+
+Each line holds the time, the event, the tool, the rule or kind of data, and whether the hook would have blocked or asked. It never holds the prompt, the command, the file path or the value that was found. The file is listed in `.komainu/.gitignore` and stays on the machine that wrote it. The builder has the same switch under Organization.
+
+Observe mode changes the hook only. Claude Code permission rules in `.claude/settings.json` still apply, and the generated policy says that the hook is not enforcing yet.
+
 ## Policy templates
 
 A policy template is the list of rules for a role or an area, as a CSV file. The policy owner edits it in a spreadsheet and imports it again.

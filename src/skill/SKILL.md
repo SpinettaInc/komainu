@@ -98,6 +98,7 @@ Do not describe an instructed or attested rule as a technical control.
 |---|---|
 | Update after a policy change | Edit `komainu.json`, run `komainu apply`, report the difference. |
 | Audit a workspace | `komainu status` finds drift. `komainu check <files>` finds leaks. |
+| Try the hook before it blocks | `komainu apply --observe` makes the hook record what it would stop, without the content, and stop nothing. `komainu report` shows the counts and `komainu apply --enforce` turns blocking on. |
 | Sanitize text before sharing it | Pipe it through `komainu redact`. |
 | Train the team on the rules | `komainu quiz > quiz.html` writes a self-contained quiz. `--area`, `--count` and `--format md` or `csv` narrow or reshape it. |
 | Roll out to non-technical teams | Add the `assistants` target. It writes one paste-in instruction pack per department under `docs/ai-guardrails/assistant-instructions/`. |

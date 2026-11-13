@@ -137,6 +137,16 @@ const views = {
                 h('div', { class: 'seg', id: 'strictness' }, STRICTNESS.map((s) => h('label', { class: 'card' },
                     h('input', { type: 'radio', name: 'strictness', value: s.id, checked: cfg.strictness === s.id, onchange: () => update({ strictness: s.id }) }),
                     h('strong', {}, strictnessIn(LANG, s.id).name), h('small', {}, strictnessIn(LANG, s.id).blurb))))),
+            h('fieldset', { class: 'field' }, h('legend', {}, t('Local hook')),
+                h('div', { class: 'seg', id: 'hook-mode' }, [
+                    [false, t('Enforce'), t('The hook stops what breaks a rule, or asks first at the advisory level.')],
+                    [true, t('Observe'), t('For a trial period. The hook stops nothing and records what it would have stopped in a file on the machine. The record never holds what was typed or found.')]
+                ].map(([value, name, blurb]) => h('label', { class: 'card' },
+                    h('input', { type: 'radio', name: 'hook-mode', value: String(value), checked: cfg.observe === value, onchange: () => update({ observe: value }) }),
+                    h('strong', {}, name), h('small', {}, blurb)))),
+                cfg.observe && h('p', { class: 'hint', id: 'observe-note' }, cfg.targets.includes('hooks')
+                    ? t('Run "node komainu.mjs report" to see the counts, then switch to Enforce and run the command again. Claude Code permission rules still apply while observing.')
+                    : t('The local hook is not among the install targets, so this setting has no effect.'))),
             h('div', { class: 'field' },
                 h('label', { for: 'f-lang' }, t('Language of the generated files')),
                 h('select', { id: 'f-lang', onchange: (e) => update({ lang: e.target.value }) }, LANGS.map((l) => h('option', { value: l, selected: l === cfg.lang }, LANG_NAMES[l]))),

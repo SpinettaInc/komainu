@@ -62,6 +62,13 @@ const JA = {
     'Approved AI tools': '承認済みの AI ツール',
     'e.g. Claude Enterprise, GitHub Copilot Business': '例: Claude Enterprise、GitHub Copilot Business',
     'Strictness': '厳格さ',
+    'Local hook': 'ローカルのフック',
+    'Enforce': '強制する',
+    'Observe': '観察する',
+    'The hook stops what breaks a rule, or asks first at the advisory level.': 'フックはルールに反するものを止めます。厳格さが「助言」の場合は、先に確認を求めます。',
+    'For a trial period. The hook stops nothing and records what it would have stopped in a file on the machine. The record never holds what was typed or found.': '試行期間向けです。フックは何も止めず、止めるはずだったものを端末上のファイルに記録します。入力した内容や見つかった値は記録されません。',
+    'Run "node komainu.mjs report" to see the counts, then switch to Enforce and run the command again. Claude Code permission rules still apply while observing.': '「node komainu.mjs report」を実行すると件数を確認できます。その後「強制する」に切り替えて、コマンドをもう一度実行してください。観察中も Claude Code の権限ルールは適用されます。',
+    'The local hook is not among the install targets, so this setting has no effect.': 'ローカルのフックが導入先に含まれていないため、この設定は効果がありません。',
     'Language of the generated files': '生成されるファイルの言語',
 
     // data view

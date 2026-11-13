@@ -13,6 +13,9 @@ import { text, coverageIn, redactIn, domainIn } from './i18n.js';
 
 export const BLOCK_START = '<!-- komainu:start -->';
 export const BLOCK_END = '<!-- komainu:end -->';
+/** Where the hook keeps its record in observe mode, inside the project. */
+export const OBSERVE_LOG = '.komainu/observed.jsonl';
+const observing = (cfg) => cfg.observe && cfg.targets.includes('hooks');
 
 const placeholders = (cfg) => [...new Set(detectorsFor(cfg.redact).map((d) => d.ph))];
 
@@ -70,7 +73,8 @@ function claudeSettings(cfg, rules) {
 function hookScript(cfg, rules) {
     const collect = (k) => rules.flatMap((r) => (r.enf?.[k] || []).map((p) => ({ ...p, rule: r.id })));
     const data = {
-        mode: cfg.strictness === 'advisory' ? 'ask' : 'deny',
+        mode: cfg.observe ? 'observe' : cfg.strictness === 'advisory' ? 'ask' : 'deny',
+        log: OBSERVE_LOG,
         contact: contactOf(cfg),
         detectors: detectorsFor(cfg.redact),
         terms: cfg.terms,
@@ -83,6 +87,10 @@ function hookScript(cfg, rules) {
 // Claude Code hook for PreToolUse and UserPromptSubmit. It runs locally, makes
 // no network calls, and stops secrets, personal data, sensitive terms and
 // dangerous commands before they leave this machine.
+//
+// In observe mode it stops nothing. It appends one line per finding to
+// ${OBSERVE_LOG} with the time, the tool and the rule or kind of data, and
+// never the prompt, the command or the value that was found.
 const G = ${JSON.stringify(data, null, 2)};
 
 const scanText = ${SCAN_SOURCE};
@@ -98,6 +106,7 @@ const tool = input.tool_name || '';
 const ti = input.tool_input || {};
 const deny = [];
 const ask = [];
+const hits = [];
 
 const scan = (label, text) => {
   if (!text) return;
@@ -106,13 +115,18 @@ const scan = (label, text) => {
     const key = f.name + f.line;
     if (seen.has(key) || seen.size >= 5) continue;
     seen.add(key);
+    hits.push({ id: f.name, would: 'deny' });
     deny.push(label + ' contains a ' + f.name + ' (line ' + f.line + '); replace it with ' + f.placeholder);
   }
 };
 const checkPath = (p) => {
   if (!p) return;
   const norm = String(p).replace(/\\\\/g, '/');
-  for (const x of G.paths) if (new RegExp(x.re).test(norm)) deny.push(norm + ' is a ' + x.why + ' [' + x.rule + ']');
+  for (const x of G.paths) {
+    if (!new RegExp(x.re).test(norm)) continue;
+    hits.push({ id: x.rule, would: 'deny' });
+    deny.push(norm + ' is a ' + x.why + ' [' + x.rule + ']');
+  }
 };
 
 if (event === 'UserPromptSubmit') {
@@ -121,7 +135,9 @@ if (event === 'UserPromptSubmit') {
   if (tool === 'Bash') {
     const cmd = String(ti.command || '');
     for (const x of G.bash) {
-      if (new RegExp(x.re, x.flags || '').test(cmd)) (x.act === 'ask' ? ask : deny).push('This command ' + x.why + ' [' + x.rule + ']');
+      if (!new RegExp(x.re, x.flags || '').test(cmd)) continue;
+      hits.push({ id: x.rule, would: x.act === 'ask' ? 'ask' : 'deny' });
+      (x.act === 'ask' ? ask : deny).push('This command ' + x.why + ' [' + x.rule + ']');
     }
     scan('The command', cmd);
   } else if (tool === 'Read') {
@@ -135,6 +151,19 @@ if (event === 'UserPromptSubmit') {
 }
 
 if (!deny.length && !ask.length) process.exit(0);
+
+if (G.mode === 'observe') {
+  // Record and let it through. A failure to write must not stop the session.
+  try {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const file = path.join(process.env.CLAUDE_PROJECT_DIR || process.cwd(), G.log);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    const time = new Date().toISOString();
+    fs.appendFileSync(file, hits.map((h) => JSON.stringify({ time, event, tool, id: h.id, would: h.would })).join('\\n') + '\\n');
+  } catch {}
+  process.exit(0);
+}
 
 const decision = deny.length && G.mode === 'deny' ? 'deny' : 'ask';
 const reason = 'Komainu guardrail: ' + [...deny, ...ask].join('; ') + '. Questions: ' + G.contact + '.';
@@ -179,6 +208,7 @@ function policyDoc(cfg, groups) {
         '',
         ...['enforced', 'instructed', 'attested'].map((id) => T.coverageLine(cov(id).name, cov(id).blurb))
     ];
+    if (observing(cfg)) out.push('', T.observeNote(OBSERVE_LOG));
     for (const g of groups) {
         out.push('', `### ${g.domain.name}`, '', T.tableHead(cfg.cite), `|---|---|---|${cfg.cite ? '---|' : ''}`);
         for (const r of g.rules) {
@@ -243,6 +273,8 @@ export function generate(input) {
         if (Object.keys(s).length) files.push({ path: '.claude/settings.json', mode: 'json', content: JSON.stringify(s, null, 2) + '\n' });
     }
     if (t('hooks')) files.push({ path: '.claude/hooks/komainu-guard.mjs', mode: 'file', exec: true, content: hookScript(cfg, rules) });
+    // The record of an observe period stays on the machine that made it.
+    if (observing(cfg)) files.push({ path: '.komainu/.gitignore', mode: 'file', content: `${OBSERVE_LOG.split('/').pop()}\n` });
     if (t('cursor')) files.push({ path: '.cursor/rules/komainu-guardrails.mdc', mode: 'file', content: `---\ndescription: ${text(cfg.lang).cursorDescription}\nalwaysApply: true\n---\n\n${md.replace(/^## /, '# ').replace(/^### /gm, '## ')}\n` });
     if (t('copilot')) files.push({ path: '.github/copilot-instructions.md', mode: 'block', content: block(cfg, md) });
     if (t('gemini')) files.push({ path: 'GEMINI.md', mode: 'block', content: block(cfg, md) });

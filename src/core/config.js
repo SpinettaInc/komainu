@@ -20,7 +20,9 @@ export const DEFAULT_CONFIG = Object.freeze({
     terms: [],
     targets: ['agents', 'claude', 'hooks', 'policy'],
     cite: true,
-    lang: 'en'
+    lang: 'en',
+    // true: the hook records what it would stop and stops nothing
+    observe: false
 });
 
 // Control characters are stripped from every text field on purpose.
@@ -56,7 +58,8 @@ export function normalize(input) {
         terms: list(c.terms).map((t) => str(t, 60)).filter((t) => t.length >= 2).slice(0, 200),
         targets: list(c.targets, TARGETS.map((t) => t.id)),
         cite: c.cite !== false,
-        lang: langOf(c.lang)
+        lang: langOf(c.lang),
+        observe: c.observe === true
     };
     if (!out.levels.includes(out.hostedMax)) out.hostedMax = out.levels[Math.min(1, out.levels.length - 1)];
     out.on = out.on.filter((id) => !out.off.includes(id));

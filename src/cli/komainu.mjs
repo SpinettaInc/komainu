@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 import { VERSION, DOMAINS, STRICTNESS, TARGETS, PRESETS, COVERAGE } from '../core/catalog.js';
 import { normalize, decode, encode, compact, stats, activeRules, DEFAULT_CONFIG } from '../core/config.js';
-import { generate, mergeBlock, mergeJson } from '../core/generate.js';
+import { generate, mergeBlock, mergeJson, OBSERVE_LOG } from '../core/generate.js';
 import { bashScript, powershellScript, agentPrompt } from '../core/commands.js';
 import { detectorsFor, scanText } from '../core/detectors.js';
 import { catalogMarkdown } from '../core/docs.js';
@@ -37,7 +37,10 @@ Usage: node komainu.mjs <command> [options]
         --url <site>        …print a link that opens the quiz on that site instead
   import <file.csv|.json>   Add your own rules from a CSV or JSON file to komainu.json
         --area <id>         …area for rules that name none (default: core)
+        --observe           …put the hook in observe mode: it records what it would stop
+                            and stops nothing. --enforce turns blocking back on
   status                    Check that installed files still match komainu.json (exit 1 on drift)
+  report [--json]           Count what the hook recorded in observe mode
   check [files…]            Scan files for secrets, personal data and sensitive terms
         --staged            …scan files staged in git (use as a pre-commit hook)
         --stdin             …scan standard input
@@ -123,6 +126,7 @@ function apply(dir, cfg, { dryRun } = {}) {
         if (file.exec) fs.chmodSync(abs, 0o755);
     }
     console.log(`\n${dryRun ? 'Dry run, nothing written. ' : ''}${summary(cfg)}.`);
+    if (cfg.observe && cfg.targets.includes('hooks')) console.log(`The hook is in observe mode: it records what it would stop in ${OBSERVE_LOG} and stops nothing. Run \`komainu report\` to see the counts, and \`komainu apply --enforce\` to turn blocking on.`);
     if (!dryRun) console.log('Review the files and commit them. Re-run `komainu apply` after editing komainu.json; `komainu status` detects drift.');
 }
 
@@ -138,6 +142,33 @@ function status(dir) {
     console.log(`\n${summary(cfg)}.`);
     if (drift) { console.log(`${drift} file(s) out of date. Run \`komainu apply\` to fix.`); process.exit(1); }
     console.log('Guardrails are in place and match komainu.json.');
+}
+
+/** Counts the lines the hook wrote in observe mode. Only this machine's record is read. */
+function report(dir, flags) {
+    const cfg = loadConfig(dir);
+    const raw = readIf(path.join(dir, OBSERVE_LOG)) || '';
+    const entries = raw.split('\n').filter(Boolean).flatMap((line) => { try { return [JSON.parse(line)]; } catch { return []; } }).filter((e) => e && typeof e.id === 'string');
+    const by = new Map();
+    for (const e of entries) {
+        const row = by.get(e.id) || { id: e.id, count: 0, would: e.would === 'ask' ? 'ask' : 'deny', tools: new Set() };
+        row.count++;
+        row.tools.add(e.tool || e.event);
+        by.set(e.id, row);
+    }
+    const rows = [...by.values()].sort((a, b) => b.count - a.count || a.id.localeCompare(b.id)).map((r) => ({ ...r, tools: [...r.tools].sort() }));
+    const times = entries.map((e) => e.time).filter(Boolean).sort();
+    const mode = cfg?.observe ? 'observe' : 'enforce';
+    if (flags.json) return console.log(JSON.stringify({ mode, total: entries.length, from: times[0] || null, to: times[times.length - 1] || null, findings: rows }, null, 2));
+    if (!entries.length) {
+        console.log(`Nothing recorded in ${OBSERVE_LOG}.`);
+        if (mode !== 'observe') console.log('The hook is not in observe mode. Turn it on with `komainu apply --observe`.');
+        return;
+    }
+    console.log(`${entries.length} finding(s) recorded between ${times[0]} and ${times[times.length - 1]}.\n`);
+    for (const r of rows) console.log(`  ${String(r.count).padStart(5)}  ${r.would === 'ask' ? 'would ask  ' : 'would block'}  ${r.id}  (${r.tools.join(', ')})`);
+    console.log('\nThe record holds the time, the tool and the rule or kind of data. It never holds what was typed or found.');
+    console.log(mode === 'observe' ? 'When the counts look right, turn blocking on with `komainu apply --enforce`.' : 'The hook is enforcing now; this record is from an earlier observe period.');
 }
 
 function check(dir, files, flags) {
@@ -287,12 +318,15 @@ async function main() {
             case 'apply': {
                 const cfg = loadConfig(dir, pos[0] || flags.file) || die('no configuration: pass a token or JSON file, or run `komainu init`');
                 console.log(`Applying guardrails${cfg.org ? ` for ${cfg.org}` : ''} in ${dir}\n`);
-                return apply(dir, cfg, { dryRun: !!flags['dry-run'] });
+                if (flags.observe && flags.enforce) die('choose one of --observe and --enforce');
+                const next = flags.observe || flags.enforce ? normalize({ ...cfg, observe: !!flags.observe }) : cfg;
+                return apply(dir, next, { dryRun: !!flags['dry-run'] });
             }
             case 'import': return importRules(dir, pos[0], flags);
             case 'template': return template(pos[0], flags);
             case 'quiz': return quiz(dir, pos[0], flags);
             case 'status': return status(dir);
+            case 'report': return report(dir, flags);
             case 'check': return check(dir, pos, flags);
             case 'redact': {
                 const cfg = loadConfig(dir) || normalize({});
