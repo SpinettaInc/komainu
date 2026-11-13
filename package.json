@@ -1,0 +1,36 @@
+{
+  "name": "komainu",
+  "version": "0.1.0",
+  "description": "Build AI guardrails for your organization. Static site + local CLI, MCP server and agent skill. Stores nothing.",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node scripts/build.mjs && node --test \"test/*.test.mjs\"",
+    "coverage": "node scripts/build.mjs && node --test --experimental-test-coverage --test-coverage-include=\"src/core/**\" --test-coverage-lines=90 --test-coverage-functions=90 \"test/*.test.mjs\"",
+    "lint": "npm run lint:js && npm run lint:css && npm run lint:md && npm run lint:html && npm run lint:prose",
+    "lint:js": "eslint .",
+    "lint:css": "stylelint \"src/web/*.css\"",
+    "lint:md": "markdownlint-cli2",
+    "lint:html": "node scripts/build.mjs && html-validate \"site/*.html\"",
+    "lint:prose": "node scripts/lint-prose.mjs",
+    "check": "npm run lint && npm test",
+    "serve": "python3 -m http.server 4173 --directory site"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "axe-core": "^4.14.0",
+    "esbuild": "^0.25.0",
+    "eslint": "^10.14.0",
+    "globals": "^17.14.0",
+    "html-validate": "^11.0.0",
+    "jsdom": "^25.0.1",
+    "markdownlint-cli2": "^0.24.1",
+    "stylelint": "^17.16.0",
+    "stylelint-config-recommended": "^18.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

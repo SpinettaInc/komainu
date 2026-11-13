@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="__CSP__">
+<meta name="referrer" content="no-referrer">
+<title>Komainu: build AI guardrails for your organization</title>
+<meta name="description" content="Komainu is a static, store-nothing builder that turns your internal policy into AI guardrails for every team. You pick the rules, copy one command, and run it on your own machine.">
+<meta property="og:title" content="Komainu: build AI guardrails for your organization">
+<meta property="og:description" content="Turn your internal policy into rules every AI assistant loads, enforced locally where possible. Nothing is stored or sent.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Komainu">
+<meta name="author" content="Spinetta Inc.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0B0D10">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232DD4BF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='24' height='24' rx='4' fill='%230B0D10' stroke='none'/%3E%3Cpath d='M12 3l8 3v6c0 4.500-3.500 7.500-8 9-4.500-1.500-8-4.500-8-9V6zM12 3v18M8 10.500v3M16 12h.01'/%3E%3C/svg%3E">
+<link rel="preload" href="fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Komainu home"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.500-3.500 7.500-8 9-4.500-1.500-8-4.500-8-9V6z"/><path d="M12 3v18"/><path d="M8 10.500v3"/><path d="M16 12h.01"/></svg>komainu</a>
+    <nav aria-label="Main">
+      <a href="#why">Why guardrails</a>
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="templates.html">Templates</a>
+      <a href="#use">Quickstart</a>
+      <a href="#boundary">What leaves your machine</a>
+      <a class="gh" href="builder.html"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>Builder</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<div class="wrap hero" id="top">
+  <div class="hero-copy">
+    <p class="kicker">AI guardrails builder · open source · v__VERSION__</p>
+    <h1>Turn your AI policy into guardrails every assistant follows</h1>
+    <p class="lede"><strong>Komainu builds AI guardrails for your whole organization, from your own policy.</strong> You pick the rules in the browser, copy one command, and run it on your own machine. Nothing you enter is stored or sent.</p>
+    <div class="install">
+      <span class="prompt" aria-hidden="true">$</span>
+      <code id="install-cmd" data-base>curl -fsSLo komainu.mjs {{BASE}}/komainu.mjs &amp;&amp; node komainu.mjs init</code>
+      <button class="copy" type="button" data-copy="#install-cmd">Copy</button>
+    </div>
+    <div class="cta">
+      <a class="btn primary" href="builder.html">Open the builder</a>
+      <a class="btn text" href="#use">Run it locally</a>
+    </div>
+  </div>
+
+  <div class="demo" id="demo" role="group" aria-label="One policy clause passing through Komainu">
+    <div class="demo-bar">
+      <span>One policy clause through Komainu · balanced strictness</span>
+      <div class="seg" role="group" aria-label="How the rule is upheld">
+        <button type="button" data-mode="enforced" aria-pressed="true">enforced</button>
+        <button type="button" data-mode="instructed" aria-pressed="false">instructed</button>
+        <button type="button" data-mode="attested" aria-pressed="false">attested</button>
+      </div>
+    </div>
+    <div class="flow" aria-live="polite">
+      <div class="pane"><div class="pane-top"><span>1 · Your policy</span><span class="where">Your documents</span></div><p data-pane="0"></p></div>
+      <div class="pane"><div class="pane-top"><span>2 · Rule chosen</span><span class="where">This browser tab</span></div><p data-pane="1"></p></div>
+      <div class="pane"><div class="pane-top"><span>3 · Installed</span><span class="where">Your machine</span></div><p data-pane="2"></p></div>
+      <div class="pane remote"><div class="pane-top"><span>4 · In a session</span><span class="where">Hosted assistant</span></div><p data-pane="3"></p></div>
+    </div>
+    <p class="demo-note" id="demo-note"
+      data-enforced="Enforced rules are checked by a local hook or permission rule before anything reaches the model. With the default configuration, 6 of 35 rules are enforced."
+      data-instructed="Instructed rules are loaded into the assistant at the start of every session. It follows them, and nothing checks that it did."
+      data-attested="Attested rules are organizational processes. The generated policy lists each one with a line for the person who confirms it."></p>
+  </div>
+</div>
+
+<section class="alt" id="why">
+  <div class="wrap">
+    <div class="head">
+      <p class="kicker">Why guardrails</p>
+      <h2>How Komainu gets a written policy into daily use</h2>
+      <p class="sub">An AI policy that sits in a document does not change what an assistant does. Komainu turns the policy into rules the assistant loads, and checks locally what can be checked.</p>
+    </div>
+    <div class="steps">
+      <div class="step"><h3>Runs locally</h3><p>The builder runs in your browser tab and the installer runs on your machine. Komainu has no service of its own.</p></div>
+      <div class="step"><h3>Stores nothing</h3><p>The site is static files. It has no database, no account and no form endpoint, and it uses no cookies or browser storage.</p></div>
+      <div class="step"><h3>Labels every rule</h3><p>Each rule is marked enforced, instructed or attested, so an instruction is never mistaken for a technical control.</p></div>
+      <div class="step"><h3>Documents its limits</h3><p>Most rules depend on the assistant following instructions. The <a href="#limits">limits section</a> lists what Komainu does not do.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <div class="head">
+      <p class="kicker">How it works</p>
+      <h2>Four steps from policy to installed guardrails</h2>
+      <p class="sub">The <a href="builder.html">builder</a>, the CLI, the MCP server and the agent skill all use the same rule catalog and write the same files.</p>
+    </div>
+    <div class="steps">
+      <div class="step"><span class="n">01</span><h3>Choose</h3><p>Start from a template and pick the teams that use AI. Switch rules on and off, and set how strict to be.</p><div class="out">__AREAS__ areas → <b>__RULES__ rules</b></div></div>
+      <div class="step"><span class="n">02</span><h3>Add your own</h3><p>Download a policy template, edit it in a spreadsheet and import it. Or let the agent skill map your policy documents clause by clause.</p><div class="out">rules.csv → <b>your rules</b></div></div>
+      <div class="step"><span class="n">03</span><h3>Copy one command</h3><p>Your choices are encoded in the command itself. An offline installer and a prompt for your coding agent are also offered.</p><div class="out">komainu.mjs apply <b>eyJ2Ijox…</b></div></div>
+      <div class="step"><span class="n">04</span><h3>Install locally</h3><p>The command writes the rule files each assistant reads, a local enforcement hook and a policy document for people.</p><div class="out">AGENTS.md + <b>komainu-guard.mjs</b></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <div class="head">
+      <p class="kicker">Features</p>
+      <h2>What Komainu includes</h2>
+      <p class="sub">Komainu covers engineering teams, other departments, leadership, IT administrators and the people who audit them.</p>
+    </div>
+    <div class="grid">
+      <div class="card"><span class="tag">builder.html</span><h3>Full-width editor</h3><p>Areas on the left, the rules you are editing in the middle, and the command and generated files on the right. All three update as you edit.</p></div>
+      <div class="card"><span class="tag">komainu import</span><h3>Your own rules</h3><p>Import rules from CSV or JSON. Common column names, separators and area names are recognized, and you see a preview before anything is added.</p></div>
+      <div class="card"><span class="tag">komainu-guard.mjs</span><h3>Local enforcement hook</h3><p>A Claude Code hook that blocks credentials, card numbers, your sensitive names, reads of secret files and dangerous commands before they leave the machine.</p></div>
+      <div class="card"><span class="tag">AGENTS.md</span><h3>One source, every assistant</h3><p>The same rules are written for Claude Code, Cursor, GitHub Copilot, Gemini CLI and Windsurf. Existing files are merged.</p></div>
+      <div class="card"><span class="tag">assistant-instructions/</span><h3>Department packs</h3><p>One paste-in block per department for teams that use a chat assistant and never open a repository: HR, sales, marketing, support, legal and finance.</p></div>
+      <div class="card"><span class="tag">acceptable-use-policy.md</span><h3>Policy for people</h3><p>A human-readable policy generated from the same configuration, with framework references and a checklist of the rules a person has to confirm.</p></div>
+      <div class="card"><span class="tag">komainu status</span><h3>Drift check</h3><p>Compares the installed files with <code>komainu.json</code> and exits with an error when they differ. Made for CI.</p></div>
+      <div class="card"><span class="tag">komainu check</span><h3>Leak scan</h3><p>Scans files, staged changes or standard input for credentials, personal data and your sensitive names. <code>komainu redact</code> replaces them with placeholders.</p></div>
+      <div class="card"><span class="tag">komainu mcp</span><h3>MCP server</h3><p>Six read-only tools for any MCP client: list the rules in force, check or redact text, decide where classified data may go, and preview a configuration.</p></div>
+      <div class="card"><span class="tag">skills/komainu-guardrails</span><h3>Agent skill</h3><p>Teaches a coding agent to read your policy documents locally, map each clause to a rule, and report the gaps before it installs anything.</p></div>
+      <div class="card"><span class="tag">komainu template</span><h3>Policy templates</h3><p>Download the rules for a role or an area as a CSV file, edit them in a spreadsheet and import the file. There are __PRESETS__ role templates and one for each area. <a href="templates.html">Browse the templates</a>.</p></div>
+      <div class="card"><span class="tag">komainu quiz</span><h3>Training quiz</h3><p>A quiz made from the rules you selected, as one HTML file to share with your team. Or send a link that opens the quiz directly. People answer, see the reason behind each answer, and nothing is recorded.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="covers">
+  <div class="wrap">
+    <div class="two">
+      <div>
+        <p class="kicker">Coverage</p>
+        <h2>What it covers</h2>
+        <p class="sub">__RULES__ rules in __AREAS__ areas. The universal rules always apply; each other area is switched on per organization.</p>
+        <ul class="chips">
+          <li>UNIVERSAL</li><li>CODING</li><li>SECURITY</li><li>DATA &amp; PRIVACY</li><li>AGENTS</li><li>COMMUNICATION</li><li>HR</li><li>SALES</li><li>MARKETING</li><li>SUPPORT</li><li>LEGAL</li><li>FINANCE</li><li>GOVERNANCE</li><li>AI PRODUCT TEAMS</li><li>IT CONTROLS</li><li>PUBLIC SERVICES</li><li>HEALTH</li><li>EDUCATION</li>
+        </ul>
+        <ul class="chips soft">
+          <li>NIST AI RMF</li><li>ISO/IEC 42001</li><li>EU AI ACT</li><li>GDPR</li><li>OWASP LLM</li><li>OWASP AGENTIC</li>
+        </ul>
+        <p class="fine">Framework references are pointers for reviewers and are not a statement of compliance. The generated policy is a starting point and is not legal advice.</p>
+      </div>
+      <div>
+        <p class="kicker">Strictness</p>
+        <h2>Strictness levels</h2>
+        <p class="sub">The level decides which rules are on by default and what the hook does.</p>
+        <div class="profiles">
+          <div class="profile"><header><code>strict</code><span>__N_STRICT__ rules</span></header><div class="bar"><i class="w100"></i></div><p>Every rule is on. The hook blocks. For regulated and high-risk environments.</p></div>
+          <div class="profile"><header><code>balanced</code><span>__N_BALANCED__ rules · default</span></header><div class="bar"><i class="w70"></i></div><p>The essentials and good practice. The hook blocks clear violations.</p></div>
+          <div class="profile"><header><code>advisory</code><span>__N_ADVISORY__ rules</span></header><div class="bar"><i class="w40"></i></div><p>The essentials only. The hook asks for confirmation and does not block.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="use">
+  <div class="wrap">
+    <div class="split">
+      <div class="head">
+        <p class="kicker">Quickstart</p>
+        <h2>Use it from the browser, the terminal or your agent</h2>
+        <p class="sub">All five paths use the same catalog and write the same files. The CLI is one JavaScript file with no dependencies, and it makes no network requests.</p>
+        <div class="links" data-online>
+        <a class="link" href="komainu.mjs">Read komainu.mjs <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></a>
+        <a class="link" href="SHA256SUMS">Checksums <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></a>
+        <a class="link" href="komainu-standalone.html" download>Offline builder <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></a>
+        </div>
+      </div>
+      <div class="code">
+        <div class="tabs" role="tablist" aria-label="Ways to use Komainu">
+          <button type="button" role="tab" aria-selected="true" aria-controls="p-web" id="t-web">builder.sh</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="p-cli" id="t-cli" tabindex="-1">cli.sh</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="p-import" id="t-import" tabindex="-1">rules.csv</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="p-mcp" id="t-mcp" tabindex="-1">mcp.sh</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="p-skill" id="t-skill" tabindex="-1">agent-skill.sh</button>
+        </div>
+    <div class="panel" role="tabpanel" id="p-web" aria-labelledby="t-web">
+      <button class="copy" type="button" data-copy="#p-web pre">Copy</button>
+<pre data-base><span class="c"># 1. build your configuration in the browser: {{BASE}}/builder.html</span>
+<span class="c"># 2. copy the command it gives you and run it in your repository</span>
+curl -fsSLo komainu.mjs {{BASE}}/komainu.mjs
+node komainu.mjs apply <span class="s">eyJ2IjoxLCJkb21haW5zIjpbImNvcmUiLCJjb2RpbmciXX0</span>
+
+node komainu.mjs apply --dry-run     <span class="c"># preview without writing</span>
+node komainu.mjs status              <span class="c"># do the installed files still match?</span></pre>
+    </div>
+    <div class="panel" role="tabpanel" id="p-cli" aria-labelledby="t-cli" hidden>
+      <button class="copy" type="button" data-copy="#p-cli pre">Copy</button>
+<pre data-base><span class="c"># one file, no dependencies, needs Node.js 18 or newer</span>
+curl -fsSLo komainu.mjs {{BASE}}/komainu.mjs
+
+node komainu.mjs init                <span class="c"># the wizard: answer a few questions</span>
+node komainu.mjs apply               <span class="c"># write the files from ./komainu.json</span>
+node komainu.mjs status              <span class="c"># exit 1 when files drift (use in CI)</span>
+node komainu.mjs check --staged      <span class="c"># scan staged files (use as pre-commit)</span>
+node komainu.mjs quiz &gt; quiz.html     <span class="c"># a training quiz on your rules</span>
+echo <span class="s">"key=AKIA…"</span> | node komainu.mjs redact
+<span class="c"># key=[REDACTED_SECRET]</span></pre>
+    </div>
+    <div class="panel" role="tabpanel" id="p-import" aria-labelledby="t-import" hidden>
+      <button class="copy" type="button" data-copy="#p-import pre">Copy</button>
+<pre><span class="c"># start from a template: the rules for a role or an area, as CSV</span>
+node komainu.mjs template --list
+node komainu.mjs template governance &gt; policy.csv   <span class="c"># edit it, then import it</span>
+
+<span class="c"># or write your own file: only the "rule" column is required</span>
+rule,level,area,source
+<span class="s">"Get approval from the People team before using AI on performance data."</span>,must,HR,AI Policy 5.2
+<span class="s">"Never paste customer contracts into a tool Legal has not approved."</span>,must,Legal,Security Policy 4.1
+<span class="s">"Prefer the internal style guide over the assistant's default tone."</span>,should,Marketing,Brand Guide 2
+
+<span class="c"># then</span>
+node komainu.mjs import rules.csv --dry-run
+<span class="c"># Read 3 rule(s) from rules.csv (CSV).  1 Human resources  1 Legal &amp; compliance  1 Marketing</span>
+node komainu.mjs import rules.csv &amp;&amp; node komainu.mjs apply</pre>
+    </div>
+    <div class="panel" role="tabpanel" id="p-mcp" aria-labelledby="t-mcp" hidden>
+      <button class="copy" type="button" data-copy="#p-mcp pre">Copy</button>
+<pre><span class="c"># Claude Code</span>
+claude mcp add komainu -- node <span class="s">/absolute/path/to/komainu.mjs</span> mcp
+
+<span class="c"># any MCP client (.mcp.json)</span>
+{ <span class="s">"mcpServers"</span>: { <span class="s">"komainu"</span>: { <span class="s">"command"</span>: <span class="s">"node"</span>, <span class="s">"args"</span>: [<span class="s">"/absolute/path/to/komainu.mjs"</span>, <span class="s">"mcp"</span>] } } }
+
+<span class="c"># tools: guardrails_list  guardrails_check  guardrails_redact</span>
+<span class="c">#        guardrails_route guardrails_catalog guardrails_build</span>
+<span class="c"># read-only, stdio, speaks MCP 2026-07-28 and the earlier handshake</span></pre>
+    </div>
+    <div class="panel" role="tabpanel" id="p-skill" aria-labelledby="t-skill" hidden>
+      <button class="copy" type="button" data-copy="#p-skill pre">Copy</button>
+<pre data-base><span class="c"># install the skill for your coding agent</span>
+curl -fsSLo komainu.mjs {{BASE}}/komainu.mjs
+node komainu.mjs skill install            <span class="c"># .claude/skills/komainu-guardrails</span>
+node komainu.mjs skill install --agents   <span class="c"># .agents/skills/ for other agents</span>
+
+<span class="c"># or without Node.js</span>
+mkdir -p .claude/skills
+curl -fsSL {{BASE}}/skill/komainu-guardrails.tar.gz | tar -xz -C .claude/skills
+
+<span class="c"># then ask your agent:</span>
+<span class="c"># "Build AI guardrails for our organization from our internal policies."</span></pre>
+    </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="boundary">
+  <div class="wrap">
+    <div class="head">
+      <p class="kicker">Data flow</p>
+      <h2>What stays on your machine and what is sent</h2>
+    </div>
+    <div class="bound">
+      <div>
+        <h3>Stays on your machine</h3>
+        <ul>
+          <li><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>Everything you enter in the builder; the page cannot make network requests</span></li>
+          <li><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>Your policy documents and the rules files you import</span></li>
+          <li><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>Your sensitive names, which are kept out of every instruction file</span></li>
+          <li><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>What the hook blocks: credentials, card numbers and flagged commands</span></li>
+        </ul>
+      </div>
+      <div class="remote">
+        <h3>Sent to your AI provider</h3>
+        <ul>
+          <li><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg><span>The rule text in your instruction files, when your assistant loads them</span></li>
+          <li><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg><span>Your organization's name and contact role, if you entered them</span></li>
+          <li><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg><span>Komainu itself sends nothing, to your provider or to anyone else</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="quality">
+  <div class="wrap">
+    <div class="head">
+      <p class="kicker">In numbers</p>
+      <h2>What is in the catalog</h2>
+      <p class="sub">The counts come from the catalog in this build. Rule wording is Komainu's own and has not been reviewed by a regulator or a standards body.</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>__RULES__</b><span>rules, each marked must or should</span></div>
+      <div class="stat"><b>__AREAS__</b><span>areas, from coding to governance</span></div>
+      <div class="stat"><b>__TARGETS__</b><span>install targets across assistants and documents</span></div>
+      <div class="stat"><b>0</b><span>network requests this page is allowed to make</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="limits">
+  <div class="wrap">
+    <div class="head">
+      <p class="kicker">Limits</p>
+      <h2>Known limits</h2>
+      <p class="sub">Read these before relying on Komainu.</p>
+    </div>
+    <ul class="limits">
+      <li>Most rules are instructed. An assistant that is told a rule usually follows it, and nothing checks that it did.</li>
+      <li>The enforcement hook works in Claude Code only. Other assistants receive the rules as instructions.</li>
+      <li>Detection is pattern-based. It catches common credential, card and bank-account formats and will miss others. For names and other personal data in prompts, use <a href="https://veil.spinetta.tech/">Veil</a>, our Python library that replaces them with tokens before the text leaves your machine.</li>
+      <li>Komainu is not a runtime filter for an AI product you ship. Pair it with one if you build AI applications. <a href="https://veil.spinetta.tech/">Veil</a> is the one we make for personal data.</li>
+      <li>The generated policy is a starting point and is not legal advice. Have it reviewed by your legal, security and privacy owners.</li>
+      <li>Sensitive names are stored in <code>komainu.json</code> and in the hook. Do not list a name there if the repository is shared with people who must not see it.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <h2>Build guardrails from your own policy</h2>
+    <p class="sub">Komainu makes a policy harder to ignore but does not make it impossible to break. Read the <a href="#limits">limits</a> before you rely on it.</p>
+    <div class="cta">
+      <div class="install">
+        <span class="prompt" aria-hidden="true">$</span>
+        <code id="install-cmd-2" data-base>curl -fsSLo komainu.mjs {{BASE}}/komainu.mjs &amp;&amp; node komainu.mjs init</code>
+        <button class="copy" type="button" data-copy="#install-cmd-2">Copy</button>
+      </div>
+      <a class="btn primary" href="builder.html">Open the builder</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Komainu is a product of <a href="https://spinetta.tech/">Spinetta Inc. <span lang="ja">合同会社</span></a> · open source · GPLv3 · this page makes no requests to other sites</span>
+    <nav aria-label="Footer">
+      <a href="builder.html">Builder</a>
+      <a href="templates.html">Templates</a>
+      <a href="#use">Quickstart</a>
+      <a href="#limits">Limits</a>
+      <a href="https://veil.spinetta.tech/">Veil</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="assets/site.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="__CSP__">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>AI guardrails quiz</title>
+<meta name="description" content="A training quiz on your organization's AI guardrails. The questions come from the link you opened, and nothing you answer is recorded or sent.">
+<meta name="author" content="Spinetta Inc.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0B0D10">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232DD4BF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='24' height='24' rx='4' fill='%230B0D10' stroke='none'/%3E%3Cpath d='M12 3l8 3v6c0 4.500-3.500 7.500-8 9-4.500-1.500-8-4.500-8-9V6zM12 3v18M8 10.500v3M16 12h.01'/%3E%3C/svg%3E">
+<link rel="preload" href="fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to the quiz</a>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="index.html" aria-label="Komainu home"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.500-3.500 7.500-8 9-4.500-1.500-8-4.500-8-9V6z"/><path d="M12 3v18"/><path d="M8 10.500v3"/><path d="M16 12h.01"/></svg>komainu</a>
+    <nav aria-label="Main">
+      <a href="templates.html">Templates</a>
+      <a class="gh" href="builder.html"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>Builder</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<div class="wrap hero slim">
+  <div class="quiz" id="quiz-root">
+    <p class="kicker" id="quiz-kicker">Training quiz</p>
+    <h1 id="quiz-title">AI guardrails quiz</h1>
+    <p class="lede" id="quiz-lede">Loading the questions from the link.</p>
+    <form id="quiz" novalidate>
+      <div id="questions"></div>
+      <div class="cta" id="quiz-actions" hidden>
+        <button type="submit" class="btn primary" id="check">Check my answers</button>
+        <button type="button" class="btn outline" id="again">Start again</button>
+        <span id="score" role="status" tabindex="-1"></span>
+      </div>
+    </form>
+    <p class="fine" id="quiz-fine">Your answers stay in this page. Nothing is recorded or sent.</p>
+  </div>
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Komainu is a product of <a href="https://spinetta.tech/">Spinetta Inc. <span lang="ja">合同会社</span></a> · open source · GPLv3 · this page makes no requests to other sites</span>
+    <nav aria-label="Footer">
+      <a href="index.html">Home</a>
+      <a href="templates.html">Templates</a>
+      <a href="builder.html">Builder</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="assets/quiz.js" defer></script>
+</body>
+</html>

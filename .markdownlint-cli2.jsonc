@@ -1,0 +1,12 @@
+{
+    // Rules: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+    "config": {
+        "default": true,
+        // Long lines are fine: paragraphs are one line each and tables cannot wrap.
+        "MD013": false,
+        // Table column style is left to the author.
+        "MD060": false
+    },
+    "globs": ["**/*.md"],
+    "ignores": ["**/node_modules/**", "site/**", "LICENSE"]
+}
