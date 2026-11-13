@@ -2,11 +2,11 @@
 
 ![Komainu logo: a shield in two halves, one marked with a line and one with a dot](src/web/logo.svg)
 
-[![CI](https://github.com/SpinettaInc/Komainu/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SpinettaInc/Komainu/actions/workflows/ci.yml)
+[![CI](https://github.com/SpinettaInc/komainu/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SpinettaInc/komainu/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
-[![Open issues](https://img.shields.io/github/issues/SpinettaInc/Komainu)](https://github.com/SpinettaInc/Komainu/issues)
-[![Open pull requests](https://img.shields.io/github/issues-pr/SpinettaInc/Komainu)](https://github.com/SpinettaInc/Komainu/pulls)
-[![Last commit](https://img.shields.io/github/last-commit/SpinettaInc/Komainu)](https://github.com/SpinettaInc/Komainu/commits/main)
+[![Open issues](https://img.shields.io/github/issues/SpinettaInc/komainu)](https://github.com/SpinettaInc/komainu/issues)
+[![Open pull requests](https://img.shields.io/github/issues-pr/SpinettaInc/komainu)](https://github.com/SpinettaInc/komainu/pulls)
+[![Last commit](https://img.shields.io/github/last-commit/SpinettaInc/komainu)](https://github.com/SpinettaInc/komainu/commits/main)
 
 [![JavaScript](https://img.shields.io/badge/JavaScript-no%20framework-F7DF1E?logo=javascript&logoColor=black)](src)
 [![Dependencies: none](https://img.shields.io/badge/runtime%20dependencies-none-brightgreen)](package.json)
